@@ -21,6 +21,14 @@ namespace FlexTrade
         public String currency { get; set; }
         public OrderStatus status { get; set; }
 
+        public Order(Product p, int quantity, Side s)
+        {
+            product = p;
+            orderQuantity = quantity;
+            side = s;
+            timeCreated = DateTime.UtcNow;
+        }
+
         public enum Side
         {
             BUY,

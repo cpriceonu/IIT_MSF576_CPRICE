@@ -58,6 +58,11 @@ namespace FlexTrade
         //Constructor
         public IBBrokerManager()
         {
+            tickerIdsToProduct = new Dictionary<int, FlexTrade.Product>();
+            orderInputQueue = new List<Krs.Ats.IBNet.Order>();
+            openOrderContracts = new Dictionary<int, Krs.Ats.IBNet.Contract>();
+            ordersOrgFormat = new Dictionary<int, FlexTrade.Order>();
+
             //The interface with Interactive Brokers is a singleton. We do this to control the message
             //flow. Having multiple client connections may be better for performance and should be 
             //explored in the future.
@@ -173,9 +178,9 @@ namespace FlexTrade
 
         public void cancelOrder(int id)
         {
-            FlexTrade.Order tempOrd = new FlexTrade.Order();
-            tempOrd.exchangeId = id;
-            cancelOrder(tempOrd);
+            //FlexTrade.Order tempOrd = new FlexTrade.Order();
+           // tempOrd.exchangeId = id;
+            //cancelOrder(tempOrd);
         }
 
         public void S_OnError(Object sender, Krs.Ats.IBNet.ErrorEventArgs e)
@@ -195,37 +200,37 @@ namespace FlexTrade
 
         public void S_OnPriceDataUpdate(Object sender, TickPriceEventArgs e)
         {
-            Product p = new Product(e.TickerId, e.TickerId);
-            p.I_OnPriceDataUpdate(sender, e);
+            //Product p = new Product(e.TickerId, e.TickerId);
+            //p.I_OnPriceDataUpdate(sender, e);
         }
         public void I_OnPriceDataUpdate(Object sender, TickPriceEventArgs e)
         {
-            this.BeginInvoke(OnPriceUpdateDelegate, sender, e);
+            //this.BeginInvoke(OnPriceUpdateDelegate, sender, e);
         }
 
         public void S_OnSizeDataUpdate(Object sender, TickSizeEventArgs e)
         {
-            Instrument p = contracts[e.TickerId];
-            p.I_OnSizeDataUpdate(sender, e);
+           // Instrument p = contracts[e.TickerId];
+            //p.I_OnSizeDataUpdate(sender, e);
         }
         public void S_OnFill(Object sender, ExecDetailsEventArgs e)
         {
-            foreach (KeyValuePair<int, Instrument> x in contracts)
-            {
-                if (e.Contract.Symbol == x.Value.Symbol)
-                {
-                    x.Value.I_OnFill(sender, e);
-                    break;
-                }
-            }
+            //foreach (KeyValuePair<int, Instrument> x in contracts)
+           // {
+           //     if (e.Contract.Symbol == x.Value.Symbol)
+           //     {
+           //         x.Value.I_OnFill(sender, e);
+           //         break;
+           ////     }
+           /// }
         }
         public void I_OnSizeDataUpdate(Object sender, TickSizeEventArgs e)
         {
-            this.BeginInvoke(OnSizeUpdateDelegate, sender, e);
+            //this.BeginInvoke(OnSizeUpdateDelegate, sender, e);
         }
         public void I_OnFill(Object sender, ExecDetailsEventArgs e)
         {
-            this.BeginInvoke(OnFillUpdateDelegate, sender, e);
+            //this.BeginInvoke(OnFillUpdateDelegate, sender, e);
         }
         /////////  Update form from the main thread ////////////////////////////////////////
 
@@ -303,14 +308,16 @@ namespace FlexTrade
         private void placeOrder(Krs.Ats.IBNet.Order order)
         {           
             //remove order from input queue first to avoid duplicate submissions
-            IEnumerable<Krs.Ats.IBNet.Order> OrderQuery =
+            /*IEnumerable<Krs.Ats.IBNet.Order> OrderQuery =
                 from orderRes in orderInputQueue
                 where orderRes.OrderId == order.OrderId
                 select orderRes;
             foreach(Krs.Ats.IBNet.Order orderRes in OrderQuery)
             {
                 orderInputQueue.Remove(orderRes);
-            }
+            }*/
+
+            orderInputQueue.Remove(order);
 
             //Send the order to Interactive Brokers
             ibClient.PlaceOrder(order.OrderId, openOrderContracts[order.OrderId], order);

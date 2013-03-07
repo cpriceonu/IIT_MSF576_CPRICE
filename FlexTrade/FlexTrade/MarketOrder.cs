@@ -8,5 +8,6 @@ namespace FlexTrade
 {
     class MarketOrder : Order
     {
+        public MarketOrder(Product p, int quantity, Side s) : base(p, quantity, s) { }
     }
 }

@@ -8,7 +8,7 @@ namespace FlexTrade
 {
     interface BrokerManager
     {
-        public bool submitOrder(Order o);
-        public bool cancelOrder(Order o);
+        int submitOrder(Order o);
+        void cancelOrder(Order o);
     }
 }

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 namespace FlexTrade
 {
+       //This is the product class
     abstract class Product
     {
         public String name { get; set; }
