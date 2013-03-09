@@ -87,8 +87,8 @@ namespace MSF576_HelloWorld
             BuyContract.AuxPrice = 560;       
             
             
-            //client.PlaceOrder(NextOrderId, Google, BuyContract);
-            //client.RequestIds(1);
+            client.PlaceOrder(NextOrderId, Google, BuyContract);
+            client.RequestIds(1);
 
             client.RequestExecutions(34, new ExecutionFilter());
 
