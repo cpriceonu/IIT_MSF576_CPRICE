@@ -11,13 +11,8 @@ using FlexTrade;
 
 namespace FlexTrade
 {
-    delegate void UpdateEventHandler(double x);
     delegate void FillEventHandler(Fill x);
     delegate void DataUpdateEventHandler(Product p);
-    delegate void FillUpdateEventHandler(Object sender, ExecDetailsEventArgs e);
-    delegate void PriceUpdateEventHandler(Object sender, TickPriceEventArgs e);
-    delegate void SizeUpdateEventHandler(Object sender, TickSizeEventArgs e);
-
 
     //This is the only class that should interact with the IB client directly. The purpose
     //of a broker manager object is to encapsulate all of the broker specific details so 
@@ -27,12 +22,8 @@ namespace FlexTrade
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         private const String host = "127.0.0.1";
         private const int port = 7496;
-        private bool waitingForReqIDs = false;
 
         private static IBClient ibClient;
-        private PriceUpdateEventHandler OnPriceUpdateDelegate;
-        private SizeUpdateEventHandler OnSizeUpdateDelegate;
-        private FillUpdateEventHandler OnFillUpdateDelegate;
 
         //incoming orders are placed here
         private List<Krs.Ats.IBNet.Order> orderInputQueue;
@@ -59,6 +50,7 @@ namespace FlexTrade
         public IBBrokerManager()
         {
             tickerIdsToProduct = new Dictionary<int, FlexTrade.Product>();
+            openOrders = new Dictionary<int, Krs.Ats.IBNet.Order>();
             orderInputQueue = new List<Krs.Ats.IBNet.Order>();
             openOrderContracts = new Dictionary<int, Krs.Ats.IBNet.Contract>();
             ordersOrgFormat = new Dictionary<int, FlexTrade.Order>();
@@ -80,12 +72,11 @@ namespace FlexTrade
                 //catch all of the messages and exceptions for this broker so that other classes
                 //don't need to be concerned with broker specific issues.
                 ibClient.ThrowExceptions = true;
-                ibClient.TickPrice += new EventHandler<TickPriceEventArgs>(S_OnPriceDataUpdate);
-                ibClient.TickSize += new EventHandler<TickSizeEventArgs>(S_OnSizeDataUpdate);
-                ibClient.Error += new EventHandler<ErrorEventArgs>(S_OnError);
-                ibClient.NextValidId += new EventHandler<NextValidIdEventArgs>(S_OnNextValidId);
-                ibClient.ExecDetails += new EventHandler<ExecDetailsEventArgs>(S_OnFill);
-                ibClient.HistoricalData += new EventHandler<HistoricalDataEventArgs>(OnHistoricalDataUpdate);
+                ibClient.TickPrice += new EventHandler<TickPriceEventArgs>(priceChangeTick);
+                ibClient.TickSize += new EventHandler<TickSizeEventArgs>(sizeChangeTick);
+                ibClient.Error += new EventHandler<ErrorEventArgs>(errorReceived);
+                ibClient.NextValidId += new EventHandler<NextValidIdEventArgs>(nextValidId);
+                ibClient.ExecDetails += new EventHandler<ExecDetailsEventArgs>(fillReceived);
    
                 //Attempt to connect to local Interactive Brokers Trader Workstation application. 
                 //IB TWS must be running. It is responsible for actually connecting to the IB
@@ -95,14 +86,6 @@ namespace FlexTrade
                 log.Info("Connecting to the IB Trader workstation at " + host + " on port " + port);
                 ibClient.Connect(host, port, 0);
             }
-
-            ///////////////////////////////////////////////////////////////////
-            ////////////  These delegates perform cross-thread operation ///////
-            ////////////////////////////////////////////////////////////////////
-            OnPriceUpdateDelegate = new PriceUpdateEventHandler(Client_TickPrice);
-            OnSizeUpdateDelegate = new SizeUpdateEventHandler(Client_TickSize);
-            OnFillUpdateDelegate = new FillUpdateEventHandler(Client_Fill);
-            ////////////////////////////////////////////////////////////////////
         }
 
         //Deconstructor
@@ -114,11 +97,11 @@ namespace FlexTrade
             ibClient.Disconnect();
             ibClient.ReadThread.Abort();
             ibClient.ReadThread.Join();
-            ibClient.TickPrice -= new EventHandler<TickPriceEventArgs>(S_OnPriceDataUpdate);
-            ibClient.TickSize -= new EventHandler<TickSizeEventArgs>(S_OnSizeDataUpdate);
-            ibClient.Error -= new EventHandler<ErrorEventArgs>(S_OnError);
-            ibClient.NextValidId -= new EventHandler<NextValidIdEventArgs>(S_OnNextValidId);
-            ibClient.ExecDetails -= new EventHandler<ExecDetailsEventArgs>(S_OnFill);
+            ibClient.TickPrice -= new EventHandler<TickPriceEventArgs>(priceChangeTick);
+            ibClient.TickSize -= new EventHandler<TickSizeEventArgs>(sizeChangeTick);
+            ibClient.Error -= new EventHandler<ErrorEventArgs>(errorReceived);
+            ibClient.NextValidId -= new EventHandler<NextValidIdEventArgs>(nextValidId);
+            ibClient.ExecDetails -= new EventHandler<ExecDetailsEventArgs>(fillReceived);
             
             //Destory the reference to the client
             ibClient = null;
@@ -195,10 +178,10 @@ namespace FlexTrade
         private void placeOrder(Krs.Ats.IBNet.Order order, Krs.Ats.IBNet.Contract contract)
         {
             orderInputQueue.Remove(order);
+            openOrders.Add(order.OrderId, order);
 
             //Send the order to Interactive Brokers
             ibClient.PlaceOrder(order.OrderId, contract, order);
-
         }
 
         public void cancelOrder(FlexTrade.Order o)
@@ -216,59 +199,17 @@ namespace FlexTrade
             //cancelOrder(tempOrd);
         }
 
-        public void S_OnError(Object sender, Krs.Ats.IBNet.ErrorEventArgs e)
+        public void errorReceived(Object sender, Krs.Ats.IBNet.ErrorEventArgs e)
         {
             log.Error("ERROR " + e.ErrorCode + " for ticker " + e.TickerId + ": " + e.ErrorMsg);
         }
 
-        public void S_OnNextValidId(Object sender, NextValidIdEventArgs e)
+        public void nextValidId(Object sender, NextValidIdEventArgs e)
         {
             orderIdCounter = e.OrderId;
-            waitingForReqIDs = false;
         }
 
-        ///////////////////////////////////////////////////////////////////////////////////
-        //////////////////////// Real time tick data //////////////////////////////////////
-        ///////////////////////////////////////////////////////////////////////////////////
-        ///////  Switch event update to main thread ///////////////////////////////////////
-
-        public void S_OnPriceDataUpdate(Object sender, TickPriceEventArgs e)
-        {
-            //Product p = new Product(e.TickerId, e.TickerId);
-            //p.I_OnPriceDataUpdate(sender, e);
-        }
-        public void I_OnPriceDataUpdate(Object sender, TickPriceEventArgs e)
-        {
-            //this.BeginInvoke(OnPriceUpdateDelegate, sender, e);
-        }
-
-        public void S_OnSizeDataUpdate(Object sender, TickSizeEventArgs e)
-        {
-           // Instrument p = contracts[e.TickerId];
-            //p.I_OnSizeDataUpdate(sender, e);
-        }
-        public void S_OnFill(Object sender, ExecDetailsEventArgs e)
-        {
-            //foreach (KeyValuePair<int, Instrument> x in contracts)
-           // {
-           //     if (e.Contract.Symbol == x.Value.Symbol)
-           //     {
-           //         x.Value.I_OnFill(sender, e);
-           //         break;
-           ////     }
-           /// }
-        }
-        public void I_OnSizeDataUpdate(Object sender, TickSizeEventArgs e)
-        {
-            //this.BeginInvoke(OnSizeUpdateDelegate, sender, e);
-        }
-        public void I_OnFill(Object sender, ExecDetailsEventArgs e)
-        {
-            //this.BeginInvoke(OnFillUpdateDelegate, sender, e);
-        }
-        /////////  Update form from the main thread ////////////////////////////////////////
-
-        public void Client_TickSize(Object sender, TickSizeEventArgs e)
+        public void sizeChangeTick(Object sender, TickSizeEventArgs e)
         {
             Product p = tickerIdsToProduct[e.TickerId];
                      
@@ -288,12 +229,15 @@ namespace FlexTrade
             }
 
             p.asOf = DateTime.UtcNow;
-            BidAskUpdate(p);
+            if(BidAskUpdate != null)
+                BidAskUpdate(p);
         }
 
-        public void Client_TickPrice(Object sender, TickPriceEventArgs e)
+        public void priceChangeTick(Object sender, TickPriceEventArgs e)
         {
             Product p = tickerIdsToProduct[e.TickerId];
+
+            log.Debug("Price change for " + p.symbol + " on " + e.TickType.ToString() + " New price = " + Convert.ToString(e.Price));
 
             switch (e.TickType)
             {
@@ -311,11 +255,12 @@ namespace FlexTrade
             }
 
             p.asOf = DateTime.UtcNow;
-            BidAskUpdate(p);
+            if (BidAskUpdate != null)
+                BidAskUpdate(p);
         }
 
 
-        public void Client_Fill(Object sender, ExecDetailsEventArgs e)
+        public void fillReceived(Object sender, ExecDetailsEventArgs e)
         {
             if(openOrderContracts.ContainsKey(e.OrderId))
             {
@@ -326,6 +271,7 @@ namespace FlexTrade
                 FlexTrade.Order ftOrder = ordersOrgFormat[e.OrderId];
 
                 //remove the orders from the list of open orders
+                openOrders.Remove(e.OrderId);
                 ordersOrgFormat.Remove(e.OrderId);
                 openOrderContracts.Remove(e.OrderId);
 
@@ -351,16 +297,5 @@ namespace FlexTrade
 
         }
         */
-        public void OnHistoricalDataUpdate(Object o, HistoricalDataEventArgs m_Args)
-        {
-
-            Debug.WriteLine(m_Args.Open.ToString());
-
-        }
-
-        public double get_TickSize()
-        {
-            return 10.0;//m_Contract.Multiplier;
-        }
     }
 }

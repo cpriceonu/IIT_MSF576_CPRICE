@@ -38,6 +38,7 @@ namespace FlexTrade
             MarketOrder ord4 = new MarketOrder(eq2, 100, Order.Side.SELL);
 
             IBBrokerManager manager = new IBBrokerManager();
+            manager.BidAskUpdate += new DataUpdateEventHandler(updatePriceData);
 
             //Since this order is being sent so soon after the IB client object is created, 
             //we have to keep trying because the initial order ID may not come back from IB
@@ -55,6 +56,10 @@ namespace FlexTrade
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new MainWindow());
+        }
+
+        public static void updatePriceData(Product p)
+        {
         }
     }
 }
