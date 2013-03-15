@@ -14,7 +14,9 @@ namespace FlexTrade
             CBOE,
             BATS,
             ICE,
-            CME
+            CME,
+            OTC,
+            UNKNOWN
         };
     }
 }

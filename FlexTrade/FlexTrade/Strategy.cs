@@ -6,10 +6,9 @@ using System.Threading.Tasks;
 
 namespace FlexTrade
 {
-    interface BrokerManager
+    interface Strategy
     {
-        int submitOrder(Order o);
-        void cancelOrder(Order o);
-        bool isReadyToTakeOrders();
+        void start();
+        void exit();
     }
 }

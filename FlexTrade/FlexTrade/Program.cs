@@ -19,38 +19,34 @@ namespace FlexTrade
         [STAThread]
         static void Main()
         {
-            //Initialize Broker Managers
-
-            //Initialize Risk Engine
-
-            //Initialize Portfolio Manager
-                //new PortfolioManager(
-
-
             //TODO - REMOVE ALL THE GARBAGE CODE HERE TO PRODUCE ORDERS
             //This is only here because we don't have a UI yet
             Equity eq1 = new Equity("Apple Computer","AAPL");
-            MarketOrder ord1 = new MarketOrder(eq1, 100, Order.Side.BUY);
-            MarketOrder ord2 = new MarketOrder(eq1, 100, Order.Side.SELL);
-
             Equity eq2 = new Equity("Google", "GOOG");
-            MarketOrder ord3 = new MarketOrder(eq2, 100, Order.Side.BUY);
-            MarketOrder ord4 = new MarketOrder(eq2, 100, Order.Side.SELL);
 
-            IBBrokerManager manager = new IBBrokerManager();
-            manager.BidAskUpdate += new DataUpdateEventHandler(updatePriceData);
+            //Initialize Position Manager
+            FIFOTradeMatcher matcher = new FIFOTradeMatcher();
+            PositionManager posMgr = new PositionManager(matcher);
 
-            //Since this order is being sent so soon after the IB client object is created, 
-            //we have to keep trying because the initial order ID may not come back from IB
-            //right away. 
-            int orderID = -1;
-            while(orderID == -1)
-                orderID = manager.submitOrder(ord1);
+            //Initialize Risk Engine
+            SimplePositionLimtRiskFilter riskFilter = new SimplePositionLimtRiskFilter(posMgr);
+            
+            //Initialize Broker Managers
+            IBBrokerManager ibManager = new IBBrokerManager(riskFilter);
+            ibManager.BidAskUpdate += new DataUpdateEventHandler(updatePriceData);
 
-            orderID = manager.submitOrder(ord2);
-            orderID = manager.submitOrder(ord3);
-            orderID = manager.submitOrder(ord4);
+            List<Product> products = new List<Product>();
+            products.Add(eq1);
+            products.Add(eq2);
 
+            List<BrokerManager> brokers = new List<BrokerManager>();
+            brokers.Add(ibManager);
+
+            BuyAndHoldStrategy strategy = new BuyAndHoldStrategy(products, brokers, 100);
+
+            strategy.start();
+            strategy.exit();
+         
             //Create Main Window
             log.Info("Creating UI components");
             Application.EnableVisualStyles();

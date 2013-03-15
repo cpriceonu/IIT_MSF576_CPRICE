@@ -13,6 +13,7 @@ namespace FlexTrade
 {
     delegate void FillEventHandler(Fill x);
     delegate void DataUpdateEventHandler(Product p);
+    //break tick out into sub events
 
     //This is the only class that should interact with the IB client directly. The purpose
     //of a broker manager object is to encapsulate all of the broker specific details so 
@@ -22,8 +23,10 @@ namespace FlexTrade
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         private const String host = "127.0.0.1";
         private const int port = 7496;
+        private bool readyToTakeOrders = false;
 
-        private static IBClient ibClient;
+        private IBClient ibClient;
+        private RiskFilter riskFilter;
 
         //incoming orders are placed here
         private List<Krs.Ats.IBNet.Order> orderInputQueue;
@@ -47,8 +50,10 @@ namespace FlexTrade
         public event DataUpdateEventHandler BidAskUpdate;
 
         //Constructor
-        public IBBrokerManager()
+        public IBBrokerManager(RiskFilter r)
         {
+            riskFilter = r;
+
             tickerIdsToProduct = new Dictionary<int, FlexTrade.Product>();
             openOrders = new Dictionary<int, Krs.Ats.IBNet.Order>();
             orderInputQueue = new List<Krs.Ats.IBNet.Order>();
@@ -65,6 +70,7 @@ namespace FlexTrade
                 ibClient = new IBClient();
 
                 //This ID is meant to represent the unique order ID with Interactive Brokers. 
+                tickerIdCounter = 1;
                 orderIdCounter = -1;
                 ibClient.RequestIds(1); //initializing the ID
 
@@ -108,8 +114,17 @@ namespace FlexTrade
         }
 
         //Take in an order in the canonical format, translate it, and add to the internal queue
-        public int submitOrder(FlexTrade.Order o)
+        public int submitOrder(FlexTrade.Order o) 
         {
+            //Must pass all orders through the risk filter to ensure that it is compliant
+            if (!riskFilter.isAcceptable(o))
+            {
+                log.Error("Order " + o.internalId + " rejected by risk filter");
+                throw new Exception("Order rejected by risk filter");
+            }
+
+            //If the order ID is still set to -1, then we haven't received the intial ID value from IB
+            //We must wait until this is received.
             if (orderIdCounter == -1)
             {
                 log.Error("Manager not fully initialized. Initial request ID not received from IB.");
@@ -117,9 +132,6 @@ namespace FlexTrade
             }
             else
             {
-                int tickerId = tickerIdCounter;
-                tickerIdCounter++;
-
                 Contract contract = null;
 
                 //Translate to the internal representation of an order
@@ -129,14 +141,7 @@ namespace FlexTrade
                 internalOrder.TotalQuantity = o.orderQuantity;
                 internalOrder.OrderId = orderIdCounter;
 
-                if (o.product is FlexTrade.Equity)
-                {
-                    contract = new Krs.Ats.IBNet.Contracts.Equity(o.product.symbol);
-                }
-                else
-                {
-                    //throw exception!! We don't support other products
-                }
+                contract = createContractFromProduct(o.product);
 
                 if (o is FlexTrade.LimitOrder)
                 {
@@ -155,24 +160,39 @@ namespace FlexTrade
                 }
 
                 //Keeping track of all the objects involved
-                tickerIdsToProduct.Add(tickerId, o.product);
                 orderInputQueue.Add(internalOrder);
                 openOrderContracts.Add(orderIdCounter, contract);
                 ordersOrgFormat.Add(orderIdCounter, o);
 
-                //Make sure we get the tick data related to this product
-                ibClient.RequestMarketData(tickerId, contract, null, false, false);
-
-                //TODO For now this will be done on the same thread. It was created as a separate method so that it would be
-                //easier to execute this asynchronously for improved performance in the future.
-                log.Info("Sending order #" + internalOrder.OrderId + ": " + internalOrder.ToString() + " for " + contract.ToString());
+                //TODO For now this will be done on the same thread. It was created as a separate method to remind me that it would be
+                //better to execute this asynchronously for improved performance in the future.
+                log.Info("Sending order #" + internalOrder.OrderId + " for " + internalOrder.TotalQuantity + " of " + contract.Symbol);
                 placeOrder(internalOrder, contract);
 
-                //increment the order ID
+                //increment the order and ticker IDs for the next order and contract
                 orderIdCounter++;
 
                 return orderIdCounter;
             }
+        }
+
+        public bool isReadyToTakeOrders()
+        {
+            return readyToTakeOrders;
+        }
+
+        public void requestMarketDataForProduct(Product p)
+        {
+            Contract contract = createContractFromProduct(p);
+
+            //Ensure we dont have ticker IDs for dup contracts. If we are not receiving market data for this product, then add it.
+            if (!tickerIdsToProduct.ContainsValue(p))
+            {
+                tickerIdsToProduct.Add(tickerIdCounter, p);
+                ibClient.RequestMarketData(tickerIdCounter, contract, null, false, false);
+            }
+
+            tickerIdCounter++;
         }
 
         private void placeOrder(Krs.Ats.IBNet.Order order, Krs.Ats.IBNet.Contract contract)
@@ -190,14 +210,7 @@ namespace FlexTrade
             ibClient.CancelOrder(Convert.ToInt32(o.exchangeId));
         }
 
-        public void cancelOrder(int id)
-        {
-            //remove order from internal queues
-
-            //FlexTrade.Order tempOrd = new FlexTrade.Order();
-           // tempOrd.exchangeId = id;
-            //cancelOrder(tempOrd);
-        }
+        //cancelReplace
 
         public void errorReceived(Object sender, Krs.Ats.IBNet.ErrorEventArgs e)
         {
@@ -207,6 +220,7 @@ namespace FlexTrade
         public void nextValidId(Object sender, NextValidIdEventArgs e)
         {
             orderIdCounter = e.OrderId;
+            readyToTakeOrders = true;
         }
 
         public void sizeChangeTick(Object sender, TickSizeEventArgs e)
@@ -284,6 +298,23 @@ namespace FlexTrade
                 FillUpdate(fill);
             }
         }
+
+        private Contract createContractFromProduct(FlexTrade.Product p)
+        {
+            Contract c = null;
+
+            if (p is FlexTrade.Equity)
+            {
+                c = new Krs.Ats.IBNet.Contracts.Equity(p.symbol);
+            }
+            else
+            {
+                //throw exception!! We don't support other products
+            }
+
+            return c;
+        }
+
 
         /* Lets implement this later so that we can chart data
         public void GetHistoricalData()

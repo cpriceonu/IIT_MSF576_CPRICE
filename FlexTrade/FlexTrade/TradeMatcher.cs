@@ -6,10 +6,8 @@ using System.Threading.Tasks;
 
 namespace FlexTrade
 {
-    interface BrokerManager
+    interface TradeMatcher
     {
-        int submitOrder(Order o);
-        void cancelOrder(Order o);
-        bool isReadyToTakeOrders();
+        List<Trade> match(List<Order> unmatchedOrders);
     }
 }

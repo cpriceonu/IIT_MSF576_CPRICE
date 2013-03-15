@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace FlexTrade
 {
-    abstract class Product
+    abstract class Product : IEquatable<Product>
     {
         public String name { get; set; }
         public String symbol { get; set; }
@@ -30,6 +30,16 @@ namespace FlexTrade
             asOf = DateTime.UtcNow;
             symbol = sym;
             name = n;
+            exchange = Exchange.Exchanges.UNKNOWN;
+        }
+
+        public bool Equals(Product other)
+        {
+            //If this product has the same symbol and is traded on the same exchange, then it is equal
+            if (other != null && other.symbol.Equals(symbol) && other.exchange.Equals(exchange))
+                return true;
+            else
+                return false;
         }
     }
 }
