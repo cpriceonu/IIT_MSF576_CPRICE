@@ -12,8 +12,13 @@ using FlexTrade;
 namespace FlexTrade
 {
     delegate void FillEventHandler(Fill x);
-    delegate void DataUpdateEventHandler(Product p);
-    //break tick out into sub events
+    delegate void BrokerReadyEventHandler(Type brokerName);
+    delegate void BidUpdateEventHandler(Product p);
+    delegate void AskUpdateEventHandler(Product p);
+    delegate void BidQtyUpdateEventHandler(Product p);
+    delegate void AskQtyUpdateEventHandler(Product p);
+    delegate void LastUpdateEventHandler(Product p);
+    delegate void LastQtyUpdateEventHandler(Product p);
 
     //This is the only class that should interact with the IB client directly. The purpose
     //of a broker manager object is to encapsulate all of the broker specific details so 
@@ -47,7 +52,13 @@ namespace FlexTrade
         private int tickerIdCounter;
 
         public event FillEventHandler FillUpdate;
-        public event DataUpdateEventHandler BidAskUpdate;
+        public event BidUpdateEventHandler BidUpdate;
+        public event AskUpdateEventHandler AskUpdate;
+        public event BidQtyUpdateEventHandler BidQtyUpdate;
+        public event AskQtyUpdateEventHandler AskQtyUpdate;
+        public event LastUpdateEventHandler LastUpdate;
+        public event LastQtyUpdateEventHandler LastQtyUpdate;
+        public event BrokerReadyEventHandler AcceptingOrders;
 
         //Constructor
         public IBBrokerManager(RiskFilter r)
@@ -69,11 +80,6 @@ namespace FlexTrade
                 log.Info("Creating new IB Client object");
                 ibClient = new IBClient();
 
-                //This ID is meant to represent the unique order ID with Interactive Brokers. 
-                tickerIdCounter = 1;
-                orderIdCounter = -1;
-                ibClient.RequestIds(1); //initializing the ID
-
                 //We need to be listening for all of the events coming back from IB. This class will
                 //catch all of the messages and exceptions for this broker so that other classes
                 //don't need to be concerned with broker specific issues.
@@ -82,15 +88,7 @@ namespace FlexTrade
                 ibClient.TickSize += new EventHandler<TickSizeEventArgs>(sizeChangeTick);
                 ibClient.Error += new EventHandler<ErrorEventArgs>(errorReceived);
                 ibClient.NextValidId += new EventHandler<NextValidIdEventArgs>(nextValidId);
-                ibClient.ExecDetails += new EventHandler<ExecDetailsEventArgs>(fillReceived);
-   
-                //Attempt to connect to local Interactive Brokers Trader Workstation application. 
-                //IB TWS must be running. It is responsible for actually connecting to the IB
-                //server and opening a special port that is used for making API calls.
-                //Of course, the assumption is that the TWS app is running on local host, may want
-                //to put this in a configuration file.
-                log.Info("Connecting to the IB Trader workstation at " + host + " on port " + port);
-                ibClient.Connect(host, port, 0);
+                ibClient.ExecDetails += new EventHandler<ExecDetailsEventArgs>(fillReceived);                
             }
         }
 
@@ -113,6 +111,22 @@ namespace FlexTrade
             ibClient = null;
         }
 
+        public void connect()
+        {
+            //Attempt to connect to local Interactive Brokers Trader Workstation application. 
+            //IB TWS must be running. It is responsible for actually connecting to the IB
+            //server and opening a special port that is used for making API calls.
+            //Of course, the assumption is that the TWS app is running on local host, may want
+            //to put this in a configuration file.
+            log.Info("Connecting to the IB Trader workstation at " + host + " on port " + port);
+            ibClient.Connect(host, port, 0);
+
+            //This ID is meant to represent the unique order ID with Interactive Brokers. 
+            tickerIdCounter = 1;
+            orderIdCounter = -1;
+            ibClient.RequestIds(1); //initializing the ID
+        }
+
         //Take in an order in the canonical format, translate it, and add to the internal queue
         public int submitOrder(FlexTrade.Order o) 
         {
@@ -125,9 +139,9 @@ namespace FlexTrade
 
             //If the order ID is still set to -1, then we haven't received the intial ID value from IB
             //We must wait until this is received.
-            if (orderIdCounter == -1)
+            if (!isReadyToTakeOrders())
             {
-                log.Error("Manager not fully initialized. Initial request ID not received from IB.");
+                log.Error("Manager not fully initialized.");
                 return -1;
             }
             else
@@ -140,6 +154,7 @@ namespace FlexTrade
                 internalOrder.OutsideRth = false;
                 internalOrder.TotalQuantity = o.orderQuantity;
                 internalOrder.OrderId = orderIdCounter;
+                o.internalId = orderIdCounter;
 
                 contract = createContractFromProduct(o.product);
 
@@ -220,57 +235,71 @@ namespace FlexTrade
         public void nextValidId(Object sender, NextValidIdEventArgs e)
         {
             orderIdCounter = e.OrderId;
-            readyToTakeOrders = true;
+            if (!readyToTakeOrders)
+            {
+                readyToTakeOrders = true;
+                AcceptingOrders(this.GetType());
+            }
+        }
+
+        public void connectionMade(Object sender)
+        {
         }
 
         public void sizeChangeTick(Object sender, TickSizeEventArgs e)
         {
             Product p = tickerIdsToProduct[e.TickerId];
-                     
+            p.asOf = DateTime.UtcNow;
+            log.Debug("Size change for " + p.symbol + " on " + e.TickType.ToString() + " New size = " + Convert.ToString(e.Size));
+
             switch (e.TickType)
             {
                 case Krs.Ats.IBNet.TickType.BidSize:
                     p.bidQty = e.Size;
+                    if (BidQtyUpdate != null)
+                        BidQtyUpdate(p);
                     break;
                 case Krs.Ats.IBNet.TickType.AskSize:
                     p.askQty = e.Size;
+                    if (AskQtyUpdate != null)
+                        AskQtyUpdate(p);
                     break;
                 case Krs.Ats.IBNet.TickType.LastSize:
                     p.lastQty = e.Size;
+                    if (LastQtyUpdate != null)
+                        LastQtyUpdate(p);
                     break;
                 default:
                     break;
             }
-
-            p.asOf = DateTime.UtcNow;
-            if(BidAskUpdate != null)
-                BidAskUpdate(p);
         }
 
         public void priceChangeTick(Object sender, TickPriceEventArgs e)
         {
             Product p = tickerIdsToProduct[e.TickerId];
-
+            p.asOf = DateTime.UtcNow;
             log.Debug("Price change for " + p.symbol + " on " + e.TickType.ToString() + " New price = " + Convert.ToString(e.Price));
 
             switch (e.TickType)
             {
                 case Krs.Ats.IBNet.TickType.BidPrice:
                     p.bid = Convert.ToDouble(e.Price);
+                    if (BidUpdate != null)
+                        BidUpdate(p);
                     break;
                 case Krs.Ats.IBNet.TickType.AskPrice:
                     p.ask = Convert.ToDouble(e.Price);
+                    if (AskUpdate != null)
+                        AskUpdate(p);
                     break;
                 case Krs.Ats.IBNet.TickType.LastPrice:
                     p.last = Convert.ToDouble(e.Price);
+                    if (LastUpdate != null)
+                        LastUpdate(p);
                     break;
                 default:
                     break;
             }
-
-            p.asOf = DateTime.UtcNow;
-            if (BidAskUpdate != null)
-                BidAskUpdate(p);
         }
 
 
@@ -295,7 +324,8 @@ namespace FlexTrade
                 fill.qty = e.Execution.Shares;
                 fill.time = DateTime.UtcNow;
 
-                FillUpdate(fill);
+                if (FillUpdate != null)
+                    FillUpdate(fill);
             }
         }
 

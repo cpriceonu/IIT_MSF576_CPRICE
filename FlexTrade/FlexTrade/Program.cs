@@ -12,6 +12,7 @@ namespace FlexTrade
     static class Program
     {
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+        private static List<BrokerManager> brokers;
 
         /// <summary>
         /// The main entry point for the application.
@@ -19,11 +20,6 @@ namespace FlexTrade
         [STAThread]
         static void Main()
         {
-            //TODO - REMOVE ALL THE GARBAGE CODE HERE TO PRODUCE ORDERS
-            //This is only here because we don't have a UI yet
-            Equity eq1 = new Equity("Apple Computer","AAPL");
-            Equity eq2 = new Equity("Google", "GOOG");
-
             //Initialize Position Manager
             FIFOTradeMatcher matcher = new FIFOTradeMatcher();
             PositionManager posMgr = new PositionManager(matcher);
@@ -32,21 +28,15 @@ namespace FlexTrade
             SimplePositionLimtRiskFilter riskFilter = new SimplePositionLimtRiskFilter(posMgr);
             
             //Initialize Broker Managers
+            brokers = new List<BrokerManager>();
+
+            //Register to get a call back when this broker is ready to receive orders
             IBBrokerManager ibManager = new IBBrokerManager(riskFilter);
-            ibManager.BidAskUpdate += new DataUpdateEventHandler(updatePriceData);
-
-            List<Product> products = new List<Product>();
-            products.Add(eq1);
-            products.Add(eq2);
-
-            List<BrokerManager> brokers = new List<BrokerManager>();
+            ibManager.AcceptingOrders += new BrokerReadyEventHandler(readyToAcceptOrders);
             brokers.Add(ibManager);
 
-            BuyAndHoldStrategy strategy = new BuyAndHoldStrategy(products, brokers, 100);
+            ibManager.connect();
 
-            strategy.start();
-            strategy.exit();
-         
             //Create Main Window
             log.Info("Creating UI components");
             Application.EnableVisualStyles();
@@ -54,8 +44,23 @@ namespace FlexTrade
             Application.Run(new MainWindow());
         }
 
-        public static void updatePriceData(Product p)
+        //We should only start our strategy when the broker manager is ready to accept orders
+        public static void readyToAcceptOrders(Type name)
         {
+            //TODO - REMOVE ALL THE GARBAGE CODE HERE TO PRODUCE ORDERS
+            //This is only here because we don't have a UI yet
+            Equity eq1 = new Equity("Apple Computer", "AAPL");
+            Equity eq2 = new Equity("Google", "GOOG");
+
+            List<Product> products = new List<Product>();
+            products.Add(eq1);
+            products.Add(eq2);
+
+            BuyAndHoldStrategy strategy = new BuyAndHoldStrategy(products, brokers, 100);
+
+            strategy.start();
+            strategy.exit();
         }
+
     }
 }
