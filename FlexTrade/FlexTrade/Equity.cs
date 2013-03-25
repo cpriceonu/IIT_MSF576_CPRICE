@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace FlexTrade
 {
-    class Equity : Product
+    public class Equity : Product
     {
         public Equity(String n, String id) : base(n, id) { }
     }

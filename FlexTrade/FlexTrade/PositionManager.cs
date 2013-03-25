@@ -10,15 +10,19 @@ namespace FlexTrade
     class PositionManager
     {
         private TradeMatcher tradeMatcher { get; set; }
-        private Dictionary<String, int> positions;
-        private List<Order> unmatchedOrders;
+        private Dictionary<Product, int> positions;  //holds a map of Product to position sizes
+        private Dictionary<Order, List<Fill>> orderToFillMap;
+        private List<Fill> unmatchedOrders;
         private List<Trade> matchedTrades;
+        private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         public PositionManager(TradeMatcher t)
         {
-            positions = new Dictionary<String, int>();
-            unmatchedOrders = new List<Order>();
+            positions = new Dictionary<Product, int>();
+            orderToFillMap = new Dictionary<Order, List<Fill>>();
+            unmatchedOrders = new List<Fill>();
             matchedTrades = new List<Trade>();
+
             tradeMatcher = t;
         }
 
@@ -26,16 +30,37 @@ namespace FlexTrade
         {
             if (p == null || p.symbol == null)
                 throw new Exception("Product object with symbol required");
-
-            return getPositionSizeBySymbol(p.symbol);
+           
+            if(positions.ContainsKey(p))
+                return positions[p];
+            else 
+                return 0;
         }
 
-        public int getPositionSizeBySymbol(String s)
+        public void fillReceived(Fill fill)
         {
-            if (positions.ContainsKey(s))
-                return positions[s];
+            if (fill == null && fill.originalOrder == null)
+                log.Error("Did not receive a valid fill message");
+
+            //add orders to the list of unmatched orders
+            unmatchedOrders.Add(fill);
+
+            //update the positions
+
+            //Keep track of the fills for each order
+            if (orderToFillMap.ContainsKey(fill.originalOrder))
+                orderToFillMap[fill.originalOrder].Add(fill);
             else
-                return 0;
+            {
+                List<Fill> fillList = new List<Fill>();
+                fillList.Add(fill);
+                orderToFillMap.Add(fill.originalOrder, fillList);
+            }
+
+            //match the new fills
+            List<Trade> trades = tradeMatcher.match(unmatchedOrders, orderToFillMap);
+
+
         }
     }
 }

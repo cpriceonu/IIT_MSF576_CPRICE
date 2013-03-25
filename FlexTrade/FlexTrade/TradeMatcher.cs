@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 
 namespace FlexTrade
 {
-    interface TradeMatcher
+    public interface TradeMatcher
     {
-        List<Trade> match(List<Order> unmatchedOrders);
+        List<Trade> match(List<Fill> unmatchedOrders, Dictionary<Order, List<Fill>> orderToFillMap);
     }
 }

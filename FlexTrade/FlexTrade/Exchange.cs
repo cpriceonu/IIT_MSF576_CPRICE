@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace FlexTrade
 {
-    class Exchange
+    public class Exchange
     {
         public enum Exchanges
         {

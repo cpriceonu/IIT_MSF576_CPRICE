@@ -6,14 +6,22 @@ using System.Threading.Tasks;
 
 namespace FlexTrade
 {
-    class Trade
+    public class Trade
     {
         public Guid internalID { get; set; }
-        public List<Order> openingOrders { get; set; }
-        public List<Order> closingOrders { get; set; }
+        public Dictionary<Fill, int> openingOrders { get; set; }
+        public Dictionary<Fill, int> closingOrders { get; set; }
         public Double profitloss { get; set; }
 
-        public Trade(List<Order> opening, List<Order> closing, Double pNL)
+        public Trade()
+        {
+            internalID = System.Guid.NewGuid();
+            openingOrders = new Dictionary<Fill, int>();
+            closingOrders = new Dictionary<Fill, int>();
+            profitloss = 0;
+        }
+
+        public Trade(Dictionary<Fill, int> opening, Dictionary<Fill, int> closing, Double pNL)
         {
             internalID = System.Guid.NewGuid();
             openingOrders = opening;

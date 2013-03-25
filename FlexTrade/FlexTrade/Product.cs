@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace FlexTrade
 {
-    abstract class Product : IEquatable<Product>
+    public abstract class Product : IEquatable<Product>
     {
         public String name { get; set; }
         public String symbol { get; set; }

@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace FlexTrade
+namespace FlexTrade 
 {
-    class Order
+    public class Order : IEquatable<Order>
     {
         public int internalId { get; set; }
         public int exchangeId { get; set; }
@@ -17,7 +17,6 @@ namespace FlexTrade
         public Side side { get; set; }
         public Int32 orderQuantity { get; set; }
         public Product product { get; set; }
-        public Int32 matchedQuantity { get; set; }
         public String currency { get; set; }
         public OrderStatus status { get; set; }
 
@@ -47,5 +46,13 @@ namespace FlexTrade
             MATCHED, 
             CANCELLED
         };
+
+        public bool Equals(Order other)
+        {
+            if (other != null && internalId == other.internalId)
+                return true;
+            else
+                return false;
+        }
     }
 }
