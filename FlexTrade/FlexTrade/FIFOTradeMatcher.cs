@@ -23,14 +23,16 @@ namespace FlexTrade
                     IEnumerable<Fill> buyFillQuery =
                     from fill in unmatchedOrders
                     where fill.originalOrder.side == Order.Side.BUY &&
-                          fill.originalOrder.product == currProd
+                          fill.originalOrder.product == currProd &&
+                          fill.matchedQuantity < fill.qty
                     select fill;
 
                     //Query to find sells for a product
                     IEnumerable<Fill> sellFillQuery =
                     from fill in unmatchedOrders
                     where fill.originalOrder.side == Order.Side.SELL &&
-                          fill.originalOrder.product == currProd
+                          fill.originalOrder.product == currProd &&
+                          fill.matchedQuantity < fill.qty
                     select fill;
 
                     trades = matchForCurrentProduct(unmatchedOrders, buyFillQuery, sellFillQuery);
@@ -73,12 +75,10 @@ namespace FlexTrade
                 else
                 {
                     //if the buy fill was first
-                    if (sellFill.time >= buyFill.time)
+                    if (unmatchedOrders.IndexOf(sellFill) >= unmatchedOrders.IndexOf(buyFill))
                     {
                         openingFill = buyFill;
                         closingFill = sellFill;
-                        currentTrade.openingOrders.Add(openingFill,openingFill.qty - openingFill.matchedQuantity);
-                        openingQtyNeeded = openingFill.qty - openingFill.matchedQuantity;
                         buyOpened = true;
                     }
                     else
@@ -87,55 +87,56 @@ namespace FlexTrade
                         closingFill = buyFill;
                         buyOpened = false;
                     }
+                    currentTrade.openingOrders.Add(openingFill, openingFill.qty - openingFill.matchedQuantity);
+                    openingQtyNeeded = openingFill.qty - openingFill.matchedQuantity;
                 }
 
-                //int qtyNeeded = openingFill.qty - openingFill.matchedQuantity;
                 int qtyAvail = closingFill.qty - closingFill.matchedQuantity;
 
                 if (openingQtyNeeded >= qtyAvail)
                 {
                     currentTrade.closingOrders.Add(closingFill, qtyAvail);
                     openingQtyNeeded = openingQtyNeeded - qtyAvail;
-                    //openingFill.matchedQuantity += qtyAvail;
-                    //closingFill.matchedQuantity = qtyAvail;
+                    openingFill.matchedQuantity += qtyAvail;
+                    closingFill.matchedQuantity += qtyAvail;
                 }
                 else
                 {
                    currentTrade.closingOrders.Add(closingFill, openingQtyNeeded);
+                   openingFill.matchedQuantity += openingQtyNeeded;
+                   closingFill.matchedQuantity += openingQtyNeeded;
                    openingQtyNeeded = 0;
-                   //openingFill.matchedQuantity = qtyNeeded;
-                   //closingFill.matchedQuantity += qtyNeeded;
                 }
 
                 //If the Trade object is full matched, add it to the list of trades
                 if (currentTrade.openingOrders.Values.Sum() == currentTrade.closingOrders.Values.Sum())
                 {
                     trades.Add(currentTrade);
-                    currentTrade = new Trade();
-                    partialMatch = false;
-
+                    
                     //remove the opening orders now that it is matched
                     foreach(Fill f in currentTrade.openingOrders.Keys)
                     {
                         //update the fills and remove them from the umatched list
-                        openingFill.matchedQuantity = f.qty;
                         unmatchedOrders.Remove(f);
                     } 
                     foreach (Fill f in currentTrade.closingOrders.Keys)
                     {
                         if (f.matchedQuantity == f.qty)
-                        {
-                            f.matchedQuantity = f.qty;
                             unmatchedOrders.Remove(f);
-                        }
-                        else
-                        {
-                            f.matchedQuantity += currentTrade.closingOrders[f];
-                        }
                     }
-
+                    currentTrade = new Trade();
+                    partialMatch = false;
                 }
             }
+
+            //unwind partial matches
+            if (currentTrade.openingOrders.Count() > 0)
+            {
+                currentTrade.openingOrders.Keys.First().matchedQuantity -= currentTrade.closingOrders.Values.Sum();
+                foreach (Fill f in currentTrade.closingOrders.Keys)
+                    f.matchedQuantity -= currentTrade.closingOrders[f];
+            }
+
             return trades;
         }
 
@@ -155,26 +156,32 @@ namespace FlexTrade
 
         private void calculatePNL(List<Trade> trades)
         {
-            
             foreach (Trade t in trades)
             {
                 double totalBought = 0.0;
                 double totalSold = 0.0;
 
-                
-                    
+                if (t.openingOrders.Count() > 0 && t.openingOrders.First().Key.originalOrder.side == Order.Side.BUY)
+                {
+                    totalBought = calcTotalForMapOfOrders(t.openingOrders);
+                    totalSold = calcTotalForMapOfOrders(t.closingOrders);
+                }
+                else
+                {
+                    totalBought = calcTotalForMapOfOrders(t.closingOrders);
+                    totalSold = calcTotalForMapOfOrders(t.openingOrders);
+                }
+
+                t.profitloss = totalSold - totalBought;
             }
         }
 
-        private double calcTotalForMapOfOrders(Dictionary<Order,int> orders)
+        private double calcTotalForMapOfOrders(Dictionary<Fill,int> orders)
         {
             double total = 0.0;
 
-            foreach (Order key in orders.Keys)
-            {
-                int qty = orders[key];
-                //orderToFillMap
-            }
+            foreach (Fill f in orders.Keys)
+                total += f.price * orders[f];
 
             return total;
         }
