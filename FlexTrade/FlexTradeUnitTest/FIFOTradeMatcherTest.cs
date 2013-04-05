@@ -32,7 +32,7 @@ namespace FlexTradeUnitTest
             fills.Add(fill1);
             fills.Add(fill2);
 
-            matches = matcher.match(fills, null);
+            matches = matcher.match(fills);
 
             Assert.IsTrue(matches.Count == 1 && fills.Count == 0);
         }
@@ -82,7 +82,7 @@ namespace FlexTradeUnitTest
             fills.Add(fill4);
             fills.Add(fill5); 
 
-            matches = matcher.match(fills, null);
+            matches = matcher.match(fills);
 
             Assert.IsTrue(matches.Count == 1 && fills.Count == 3);
         }
@@ -138,7 +138,7 @@ namespace FlexTradeUnitTest
             fills.Add(fill5);
             fills.Add(fill6); 
 
-            matches = matcher.match(fills, null);
+            matches = matcher.match(fills);
 
             Assert.IsTrue(matches.Count == 2 && fills.Count == 3);
         }

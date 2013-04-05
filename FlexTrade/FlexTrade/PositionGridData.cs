@@ -6,8 +6,9 @@ using System.Threading.Tasks;
 
 namespace FlexTrade
 {
-    public interface TradeMatcher
+    class OrderGridData
     {
-        List<Trade> match(List<Fill> unmatchedOrders);
+        public int orderNum { get; set; }
+        public String description { get; set; }
     }
 }

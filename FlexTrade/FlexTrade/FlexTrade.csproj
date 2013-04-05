@@ -42,6 +42,7 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Windows.Forms.DataVisualization" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
@@ -52,11 +53,14 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BrokerListener.cs" />
     <Compile Include="BuyAndHoldStrategy.cs" />
+    <Compile Include="PositionGridData.cs" />
     <Compile Include="Equity.cs" />
     <Compile Include="Exchange.cs" />
     <Compile Include="FIFOTradeMatcher.cs" />
     <Compile Include="Fill.cs" />
+    <Compile Include="OrderGridData.cs" />
     <Compile Include="RiskFilter.cs" />
     <Compile Include="SimplePositionLimtRiskFilter.cs" />
     <Compile Include="Strategy.cs" />
@@ -77,6 +81,7 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Trade.cs" />
+    <Compile Include="UIController.cs" />
     <EmbeddedResource Include="MainWindow.resx">
       <DependentUpon>MainWindow.cs</DependentUpon>
     </EmbeddedResource>
@@ -91,6 +96,9 @@
     </Compile>
     <None Include="ClassDiagram1.cd" />
     <None Include="Documentation\moneyDoc.pdf" />
+    <None Include="Properties\DataSources\MainWindow.datasource" />
+    <None Include="Properties\DataSources\PositionManager.datasource" />
+    <None Include="Properties\DataSources\UIController.datasource" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>

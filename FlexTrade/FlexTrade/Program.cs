@@ -26,7 +26,7 @@ namespace FlexTrade
 
             //Initialize Risk Engine
             SimplePositionLimtRiskFilter riskFilter = new SimplePositionLimtRiskFilter(posMgr);
-            
+
             //Initialize Broker Managers
             brokers = new List<BrokerManager>();
 
@@ -34,6 +34,8 @@ namespace FlexTrade
             IBBrokerManager ibManager = new IBBrokerManager(riskFilter);
             ibManager.AcceptingOrders += new BrokerReadyEventHandler(readyToAcceptOrders);
             brokers.Add(ibManager);
+            
+            posMgr.addBrokers(brokers);
 
             ibManager.connect();
 
@@ -41,7 +43,9 @@ namespace FlexTrade
             log.Info("Creating UI components");
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new MainWindow());
+            MainWindow win = new MainWindow();
+            ibManager.AcceptingOrders += new BrokerReadyEventHandler(win.receiveEvent);
+            Application.Run(win);
         }
 
         //We should only start our strategy when the broker manager is ready to accept orders
@@ -56,7 +60,7 @@ namespace FlexTrade
             products.Add(eq1);
             products.Add(eq2);
 
-            BuyAndHoldStrategy strategy = new BuyAndHoldStrategy(products, brokers, 100);
+            BuyAndHoldStrategy strategy = new BuyAndHoldStrategy(products, brokers, 500);
 
             strategy.start();
             strategy.exit();

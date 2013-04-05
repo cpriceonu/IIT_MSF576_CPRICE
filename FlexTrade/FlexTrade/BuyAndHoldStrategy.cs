@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace FlexTrade
 {
-    class BuyAndHoldStrategy : Strategy
+    class BuyAndHoldStrategy : Strategy, BrokerListener
     {
         private List<Product> products;
         private List<BrokerManager> brokers;

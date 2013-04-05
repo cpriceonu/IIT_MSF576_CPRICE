@@ -79,7 +79,7 @@ namespace FlexTrade
                 //Create the IB Client which is the main interface for interactining the broker system
                 log.Info("Creating new IB Client object");
                 ibClient = new IBClient();
-
+                
                 //We need to be listening for all of the events coming back from IB. This class will
                 //catch all of the messages and exceptions for this broker so that other classes
                 //don't need to be concerned with broker specific issues.
@@ -88,7 +88,8 @@ namespace FlexTrade
                 ibClient.TickSize += new EventHandler<TickSizeEventArgs>(sizeChangeTick);
                 ibClient.Error += new EventHandler<ErrorEventArgs>(errorReceived);
                 ibClient.NextValidId += new EventHandler<NextValidIdEventArgs>(nextValidId);
-                ibClient.ExecDetails += new EventHandler<ExecDetailsEventArgs>(fillReceived);                
+                ibClient.ExecDetails += new EventHandler<ExecDetailsEventArgs>(fillReceived);
+                ibClient.OpenOrder += new EventHandler<OpenOrderEventArgs>(openOrder);
             }
         }
 
@@ -106,7 +107,8 @@ namespace FlexTrade
             ibClient.Error -= new EventHandler<ErrorEventArgs>(errorReceived);
             ibClient.NextValidId -= new EventHandler<NextValidIdEventArgs>(nextValidId);
             ibClient.ExecDetails -= new EventHandler<ExecDetailsEventArgs>(fillReceived);
-            
+            ibClient.OpenOrder -= new EventHandler<OpenOrderEventArgs>(openOrder);
+
             //Destory the reference to the client
             ibClient = null;
         }
@@ -308,11 +310,11 @@ namespace FlexTrade
             if(openOrderContracts.ContainsKey(e.OrderId))
             {
                 FlexTrade.Fill fill = new FlexTrade.Fill();
-
+               
                 //Get the open orders based on the order ID
                 Krs.Ats.IBNet.Order krsOrder = openOrders[e.OrderId];
                 FlexTrade.Order ftOrder = ordersOrgFormat[e.OrderId];
-
+                
                 //remove the orders from the list of open orders
                 openOrders.Remove(e.OrderId);
                 ordersOrgFormat.Remove(e.OrderId);
@@ -327,6 +329,11 @@ namespace FlexTrade
                 if (FillUpdate != null)
                     FillUpdate(fill);
             }
+        }
+
+        public void openOrder(Object sender, OpenOrderEventArgs e)
+        {
+            log.Info("Commission = " + e.OrderState.Commission);
         }
 
         private Contract createContractFromProduct(FlexTrade.Product p)

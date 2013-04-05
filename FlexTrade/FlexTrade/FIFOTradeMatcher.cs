@@ -8,7 +8,7 @@ namespace FlexTrade
 {
     public class FIFOTradeMatcher : TradeMatcher
     {
-        public List<Trade> match(List<Fill> unmatchedOrders, Dictionary<Order, List<Fill>> orderToFillMap)
+        public List<Trade> match(List<Fill> unmatchedOrders)
         {
              List<Trade> trades = new List<Trade>();
 
