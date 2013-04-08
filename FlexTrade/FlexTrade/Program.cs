@@ -43,8 +43,12 @@ namespace FlexTrade
             log.Info("Creating UI components");
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+            //MainWindow win = new MainWindow(controller);
             MainWindow win = new MainWindow();
-            ibManager.AcceptingOrders += new BrokerReadyEventHandler(win.receiveEvent);
+
+            //Create UI Controller
+            UIController controller = new UIController(brokers, win);
+
             Application.Run(win);
         }
 

@@ -1,17 +1,29 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace FlexTrade
 {
-    class UIController : BrokerListener
+    public class UIController : BrokerListener
     {
-        private List<Strategy> runningStrategies;
+        //private List<Strategy> runningStrategies;
+        private MainWindow win;
 
-        public List<OrderGridData> orderGrid { get; set; }
-        public List<PositionGridData> positionGrid { get; set; }
+        public UIController(List<BrokerManager> brokers, MainWindow w)
+        {
+            win = w;
+
+            //register to receive events from brokers
+            foreach (BrokerManager brk in brokers)
+            {
+                brk.FillUpdate += new FillEventHandler(fillReceived);
+                brk.OrderConfirmed += new OrderConfirmEventHandler(orderConfirmed);
+            }
+        }
 
         //create strategy
 
@@ -23,7 +35,7 @@ namespace FlexTrade
 
         public void fillReceived(Fill fill)
         {
-            throw new NotImplementedException();
+            win.addUpdateOrder(createOrderGridItem(fill.originalOrder));
         }
 
         public void bidUpdate(Product p)
@@ -54,6 +66,23 @@ namespace FlexTrade
         public void lastQtyUpdate(Product p)
         {
             throw new NotImplementedException();
+        }
+
+        public void orderConfirmed(Order ord)
+        {
+            win.addUpdateOrder(createOrderGridItem(ord));
+        }
+
+        private OrderGridData createOrderGridItem(Order ord)
+        {
+            OrderGridData data = new OrderGridData();
+            data.side = ord.side.ToString();
+            data.symbol = ord.product.symbol;
+            data.orderNum = ord.internalId;
+            data.qty = ord.orderQuantity;
+            data.filled = ord.fillQuantities.Sum();
+
+            return data;
         }
     }
 }

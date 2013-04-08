@@ -120,5 +120,10 @@ namespace FlexTrade
         {
             //do nothing
         }
+
+        public void orderConfirmed(Order ord)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

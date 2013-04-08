@@ -6,8 +6,9 @@ using System.Threading.Tasks;
 
 namespace FlexTrade
 {
-    interface BrokerManager
+    public interface BrokerManager
     {
+        event OrderConfirmEventHandler OrderConfirmed;
         event FillEventHandler FillUpdate;
         event BidUpdateEventHandler BidUpdate;
         event AskUpdateEventHandler AskUpdate;

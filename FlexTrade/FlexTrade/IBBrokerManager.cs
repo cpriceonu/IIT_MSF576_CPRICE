@@ -11,19 +11,20 @@ using FlexTrade;
 
 namespace FlexTrade
 {
-    delegate void FillEventHandler(Fill x);
-    delegate void BrokerReadyEventHandler(Type brokerName);
-    delegate void BidUpdateEventHandler(Product p);
-    delegate void AskUpdateEventHandler(Product p);
-    delegate void BidQtyUpdateEventHandler(Product p);
-    delegate void AskQtyUpdateEventHandler(Product p);
-    delegate void LastUpdateEventHandler(Product p);
-    delegate void LastQtyUpdateEventHandler(Product p);
+    public delegate void FillEventHandler(Fill x);
+    public delegate void OrderConfirmEventHandler(Order x);
+    public delegate void BrokerReadyEventHandler(Type brokerName);
+    public delegate void BidUpdateEventHandler(Product p);
+    public delegate void AskUpdateEventHandler(Product p);
+    public delegate void BidQtyUpdateEventHandler(Product p);
+    public delegate void AskQtyUpdateEventHandler(Product p);
+    public delegate void LastUpdateEventHandler(Product p);
+    public delegate void LastQtyUpdateEventHandler(Product p);
 
     //This is the only class that should interact with the IB client directly. The purpose
     //of a broker manager object is to encapsulate all of the broker specific details so 
     //that the remainder of the application can work with one canonical model
-    class IBBrokerManager : BrokerManager
+    public class IBBrokerManager : BrokerManager
     {
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         private const String host = "127.0.0.1";
@@ -52,6 +53,7 @@ namespace FlexTrade
         private int tickerIdCounter;
 
         public event FillEventHandler FillUpdate;
+        public event OrderConfirmEventHandler OrderConfirmed;
         public event BidUpdateEventHandler BidUpdate;
         public event AskUpdateEventHandler AskUpdate;
         public event BidQtyUpdateEventHandler BidQtyUpdate;
@@ -132,6 +134,7 @@ namespace FlexTrade
         //Take in an order in the canonical format, translate it, and add to the internal queue
         public int submitOrder(FlexTrade.Order o) 
         {
+            int currentID = orderIdCounter;
             //Must pass all orders through the risk filter to ensure that it is compliant
             if (!riskFilter.isAcceptable(o))
             {
@@ -155,8 +158,8 @@ namespace FlexTrade
                 internalOrder.Action = (o.side.Equals(FlexTrade.Order.Side.BUY) ? ActionSide.Buy : ActionSide.Sell);
                 internalOrder.OutsideRth = false;
                 internalOrder.TotalQuantity = o.orderQuantity;
-                internalOrder.OrderId = orderIdCounter;
-                o.internalId = orderIdCounter;
+                internalOrder.OrderId = currentID;
+                o.internalId = currentID;
 
                 contract = createContractFromProduct(o.product);
 
@@ -178,8 +181,8 @@ namespace FlexTrade
 
                 //Keeping track of all the objects involved
                 orderInputQueue.Add(internalOrder);
-                openOrderContracts.Add(orderIdCounter, contract);
-                ordersOrgFormat.Add(orderIdCounter, o);
+                openOrderContracts.Add(currentID, contract);
+                ordersOrgFormat.Add(currentID, o);
 
                 //TODO For now this will be done on the same thread. It was created as a separate method to remind me that it would be
                 //better to execute this asynchronously for improved performance in the future.
@@ -189,7 +192,7 @@ namespace FlexTrade
                 //increment the order and ticker IDs for the next order and contract
                 orderIdCounter++;
 
-                return orderIdCounter;
+                return currentID;
             }
         }
 
@@ -314,11 +317,17 @@ namespace FlexTrade
                 //Get the open orders based on the order ID
                 Krs.Ats.IBNet.Order krsOrder = openOrders[e.OrderId];
                 FlexTrade.Order ftOrder = ordersOrgFormat[e.OrderId];
-                
-                //remove the orders from the list of open orders
-                openOrders.Remove(e.OrderId);
-                ordersOrgFormat.Remove(e.OrderId);
-                openOrderContracts.Remove(e.OrderId);
+
+                ftOrder.fillPrices.Add(e.Execution.Price);
+                ftOrder.fillQuantities.Add(e.Execution.Shares);
+
+                //if completely filled, remove the orders from the list of open orders
+                if (ftOrder.fillQuantities.Sum() == ftOrder.orderQuantity)
+                {
+                    openOrders.Remove(e.OrderId);
+                    ordersOrgFormat.Remove(e.OrderId);
+                    openOrderContracts.Remove(e.OrderId);
+                }
 
                 //Set the execution values in the order
                 fill.originalOrder = ftOrder;
@@ -326,14 +335,20 @@ namespace FlexTrade
                 fill.qty = e.Execution.Shares;
                 fill.time = DateTime.UtcNow;
 
-                if (FillUpdate != null)
+                if (FillUpdate != null && fill != null)
                     FillUpdate(fill);
             }
         }
 
         public void openOrder(Object sender, OpenOrderEventArgs e)
         {
-            log.Info("Commission = " + e.OrderState.Commission);
+            Order ord = null;
+
+            if(ordersOrgFormat.ContainsKey(e.OrderId))
+                ord = ordersOrgFormat[e.OrderId];
+
+            if (OrderConfirmed != null && ord != null)
+                OrderConfirmed(ord);
         }
 
         private Contract createContractFromProduct(FlexTrade.Product p)

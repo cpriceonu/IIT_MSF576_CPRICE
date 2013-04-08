@@ -8,6 +8,7 @@ namespace FlexTrade
 {
     interface BrokerListener
     {
+        void orderConfirmed(Order ord);
         void fillReceived(Fill fill);
         void bidUpdate(Product p);
         void askUpdate(Product p);

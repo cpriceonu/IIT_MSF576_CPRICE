@@ -55,12 +55,12 @@
   <ItemGroup>
     <Compile Include="BrokerListener.cs" />
     <Compile Include="BuyAndHoldStrategy.cs" />
-    <Compile Include="PositionGridData.cs" />
+    <Compile Include="OrderGridData.cs" />
     <Compile Include="Equity.cs" />
     <Compile Include="Exchange.cs" />
     <Compile Include="FIFOTradeMatcher.cs" />
     <Compile Include="Fill.cs" />
-    <Compile Include="OrderGridData.cs" />
+    <Compile Include="PositionGridData.cs" />
     <Compile Include="RiskFilter.cs" />
     <Compile Include="SimplePositionLimtRiskFilter.cs" />
     <Compile Include="Strategy.cs" />
@@ -98,6 +98,7 @@
     <None Include="Documentation\moneyDoc.pdf" />
     <None Include="Properties\DataSources\MainWindow.datasource" />
     <None Include="Properties\DataSources\PositionManager.datasource" />
+    <None Include="Properties\DataSources\Program.datasource" />
     <None Include="Properties\DataSources\UIController.datasource" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>

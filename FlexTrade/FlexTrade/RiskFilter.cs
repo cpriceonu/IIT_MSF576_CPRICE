@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace FlexTrade
 {
-    interface RiskFilter
+    public interface RiskFilter
     {
         bool isAcceptable(Order o);
     }
