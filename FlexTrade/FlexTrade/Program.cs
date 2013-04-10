@@ -47,7 +47,7 @@ namespace FlexTrade
             MainWindow win = new MainWindow();
 
             //Create UI Controller
-            UIController controller = new UIController(brokers, win);
+            UIController controller = new UIController(brokers, posMgr, win);
 
             Application.Run(win);
         }

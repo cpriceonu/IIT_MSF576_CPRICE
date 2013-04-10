@@ -7,8 +7,14 @@ using System.Reflection;
 
 namespace FlexTrade
 {
-    class PositionManager
+    public delegate void PositionChangedEventHandler(Product p, int size);
+    public delegate void TradeMatchedEventHandler(List<Trade> t);
+    
+    public class PositionManager
     {
+        public event PositionChangedEventHandler PositionChange;
+        public event TradeMatchedEventHandler TradeMatched;
+
         private TradeMatcher tradeMatcher { get; set; }
         private Dictionary<Product, int> positions;  //holds a map of Product to position sizes
         private Dictionary<Order, List<Fill>> orderToFillMap;
@@ -84,6 +90,12 @@ namespace FlexTrade
             List<Trade> trades = tradeMatcher.match(unmatchedOrders);
             matchedTrades.AddRange(trades);
 
+            //If a trade was matched, inform those that are interested
+            if(TradeMatched != null && trades != null && trades.Count() > 0)
+                TradeMatched(trades);
+
+            if (PositionChange != null)
+                PositionChange(fill.originalOrder.product, qty);
         }
     }
 }

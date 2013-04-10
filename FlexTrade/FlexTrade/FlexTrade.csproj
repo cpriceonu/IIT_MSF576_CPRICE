@@ -55,6 +55,7 @@
   <ItemGroup>
     <Compile Include="BrokerListener.cs" />
     <Compile Include="BuyAndHoldStrategy.cs" />
+    <Compile Include="PositionListener.cs" />
     <Compile Include="OrderGridData.cs" />
     <Compile Include="Equity.cs" />
     <Compile Include="Exchange.cs" />

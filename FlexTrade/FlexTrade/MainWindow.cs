@@ -11,18 +11,26 @@ using System.Windows.Forms;
 
 namespace FlexTrade
 {
+    delegate void UpdateOrderItemDelegate(OrderGridData item);
+    delegate void RemoveOrderItemDelegate(OrderGridData item);
+    delegate void UpdatePositionItemDelegate(PositionGridData item);
+
     public partial class MainWindow : Form
     {
-        private delegate void UpdateOrderItemDelegate(OrderGridData item);
-        private delegate void RemoveOrderItemDelegate(OrderGridData item);
-        private delegate void UpdatePositionItemDelegate(PositionGridData item);
         public BindingList<OrderGridData> orderGrid { get; set; }
         public BindingList<PositionGridData> positionGrid { get; set; }
+
+        private double cummulativePnL;
+        private int seconds;
+        Random m_random;
+        System.Windows.Forms.Timer m_Timer;
 
         public MainWindow()
         {
             InitializeComponent();
 
+            cummulativePnL = 0.0;
+            seconds = 0;
             orderGrid = new BindingList<OrderGridData>();
             positionGrid = new BindingList<PositionGridData>();
         }
@@ -94,6 +102,11 @@ namespace FlexTrade
 
         }
 
+        public void newPnLValue(double val)
+        {
+            cummulativePnL = val;
+        }
+
         public void addUpdateOrder(OrderGridData ord)
         {
             dataGridView1.Invoke(new UpdateOrderItemDelegate(this.updateOrderItemToGrid), ord);
@@ -138,10 +151,37 @@ namespace FlexTrade
 
         private void startButton_Click(object sender, EventArgs e)
         {
-
+            m_Timer = new System.Windows.Forms.Timer();
+            m_Timer.Interval = 1000;
+            m_Timer.Tick += new EventHandler(timerTick);
+            m_Timer.Enabled = true;    
         }
 
         private void exitButton_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void timerTick(Object o, EventArgs e)
+        {
+            chart1.Series[0].Points.AddXY(seconds, cummulativePnL);
+            chart1.ChartAreas[0].AxisX.Enabled = System.Windows.Forms.DataVisualization.Charting.AxisEnabled.False;
+           //  chart1.ChartAreas[0].AxisY.Minimum = 0;
+            //chart1.ChartAreas[0].AxisX.Minimum = 0;
+            //double removeBefore = DateTime.Now.AddSeconds(-45.0).ToOADate();
+            //while( chart1.Series[0].Points[0].XValue < removeBefore )
+            while (chart1.Series[0].Points.Count > 50)
+            {
+                chart1.Series[0].Points.RemoveAt(0);
+            }
+            chart1.ChartAreas[0].AxisX.Minimum = chart1.Series[0].Points[0].XValue;
+            chart1.ChartAreas[0].AxisX.Maximum = chart1.Series[0].Points[0].XValue + 50;
+            chart1.Invalidate();
+
+            seconds++;
+        }
+
+        private void label5_Click(object sender, EventArgs e)
         {
 
         }
