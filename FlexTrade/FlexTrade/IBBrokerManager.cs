@@ -188,6 +188,7 @@ namespace FlexTrade
                 //better to execute this asynchronously for improved performance in the future.
                 log.Info("Sending order #" + internalOrder.OrderId + " for " + internalOrder.TotalQuantity + " of " + contract.Symbol);
                 placeOrder(internalOrder, contract);
+                requestMarketDataForProduct(o.product);
 
                 //increment the order and ticker IDs for the next order and contract
                 orderIdCounter++;

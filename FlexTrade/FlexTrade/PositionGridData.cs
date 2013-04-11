@@ -12,6 +12,7 @@ namespace FlexTrade
         public String symbol { get; set; }
         public int position { get; set; }
         public Double value { get; set; }
+        public Double last { get; set; }
 
         public bool Equals(PositionGridData other)
         {
