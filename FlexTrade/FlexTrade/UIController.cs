@@ -8,6 +8,8 @@ using System.Windows.Forms;
 
 namespace FlexTrade
 {
+    public enum PARMS {Ticker, Qty};
+
     public class UIController : BrokerListener, PositionListener
     {
         private Strategy runningStrategy;
@@ -33,23 +35,28 @@ namespace FlexTrade
                 brk.OrderConfirmed += new OrderConfirmEventHandler(orderConfirmed);
                 brk.LastUpdate += new LastUpdateEventHandler(lastUpdate);
             }
+
+            Dictionary<int, String> strategyMap = new Dictionary<int, String>();
+            strategyMap.Add(0, "Buy & Hold");
+            win.availableStrategies = strategyMap;
         }
 
         //start strategy
-        private void startStrategy(String name)
+        private void startStrategy(int id, Dictionary<PARMS, String> parms)
         {
             if (runningStrategy == null)
             {
-                //TODO - REMOVE ALL THE GARBAGE CODE HERE TO PRODUCE ORDERS
-                //This is only here because we don't have a UI yet
-                Equity eq1 = new Equity("Apple Computer", "AAPL");
-                Equity eq2 = new Equity("Google", "GOOG");
+                Equity eq1 = new Equity(parms[PARMS.Ticker], parms[PARMS.Ticker]);
 
                 List<Product> products = new List<Product>();
                 products.Add(eq1);
-                products.Add(eq2);
 
-                runningStrategy = new BuyAndHoldStrategy(products, brokers, 500);
+                switch (id)
+                {
+                    case 0:
+                        runningStrategy = new BuyAndHoldStrategy(products, brokers, Int32.Parse(parms[PARMS.Qty]));
+                        break;
+                }
 
                 runningStrategy.start();
             }
@@ -121,7 +128,7 @@ namespace FlexTrade
         {
             foreach(Trade t in tradeList)
             {
-                cummulativePnL += t.profitloss;
+                cummulativePnL += t.perSharePnL;
             }
             win.newPnLValue(cummulativePnL);
         }

@@ -63,6 +63,12 @@
     <Compile Include="Fill.cs" />
     <Compile Include="PositionGridData.cs" />
     <Compile Include="RiskFilter.cs" />
+    <Compile Include="SimpleOneTickerParmForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SimpleOneTickerParmForm.Designer.cs">
+      <DependentUpon>SimpleOneTickerParmForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="SimplePositionLimtRiskFilter.cs" />
     <Compile Include="Strategy.cs" />
     <Compile Include="TradeMatcher.cs" />
@@ -95,6 +101,9 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <EmbeddedResource Include="SimpleOneTickerParmForm.resx">
+      <DependentUpon>SimpleOneTickerParmForm.cs</DependentUpon>
+    </EmbeddedResource>
     <None Include="ClassDiagram1.cd" />
     <None Include="Documentation\moneyDoc.pdf" />
     <None Include="Properties\DataSources\MainWindow.datasource" />

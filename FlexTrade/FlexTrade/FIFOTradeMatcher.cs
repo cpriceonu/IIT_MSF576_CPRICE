@@ -160,6 +160,7 @@ namespace FlexTrade
             {
                 double totalBought = 0.0;
                 double totalSold = 0.0;
+                int qtyMatched = 0;
 
                 if (t.openingOrders.Count() > 0 && t.openingOrders.First().Key.originalOrder.side == Order.Side.BUY)
                 {
@@ -172,7 +173,10 @@ namespace FlexTrade
                     totalSold = calcTotalForMapOfOrders(t.openingOrders);
                 }
 
+                qtyMatched = t.openingOrders.Values.Sum();
+
                 t.profitloss = totalSold - totalBought;
+                t.perSharePnL = t.profitloss / qtyMatched;
             }
         }
 

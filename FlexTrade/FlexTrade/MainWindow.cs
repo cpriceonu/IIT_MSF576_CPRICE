@@ -11,7 +11,7 @@ using System.Windows.Forms;
 
 namespace FlexTrade
 {
-    public delegate void StrategyStartDelegate(String name);
+    public delegate void StrategyStartDelegate(int id, Dictionary<PARMS, String> parmMap);
     public delegate void StrategyStopDelegate();
 
     public partial class MainWindow : Form
@@ -27,8 +27,26 @@ namespace FlexTrade
         public BindingList<OrderGridData> orderGrid { get; set; }
         public BindingList<PositionGridData> positionGrid { get; set; }
 
+        public Dictionary<PARMS, String> currentParms { get; set; }
+
+        private Dictionary<int, String> _availableStrategies;
+        public Dictionary<int, String> availableStrategies
+        {
+            get { return _availableStrategies; }
+            set
+            {
+                _availableStrategies = value;
+                foreach (String s in _availableStrategies.Values)
+                    stategySelection.Items.Add(s);
+
+                stategySelection.Refresh();
+            }
+
+        }
+
         private double cummulativePnL;
         private int seconds;
+        private bool started = false;
         Random m_random;
         System.Windows.Forms.Timer m_Timer;
 
@@ -40,6 +58,7 @@ namespace FlexTrade
             seconds = 0;
             orderGrid = new BindingList<OrderGridData>();
             positionGrid = new BindingList<PositionGridData>();
+            _availableStrategies = new Dictionary<int, String>();
         }
 
         private void dataGridView1_CellContentClick(object sender, DataGridViewCellEventArgs e)
@@ -62,11 +81,11 @@ namespace FlexTrade
             //Bind data elements to the tables on the UI so that the tables automatically update when the data changes
             BindingSource orderGridSource = new BindingSource();
             orderGridSource.DataSource = orderGrid;
-            dataGridView1.DataSource = orderGridSource;
+            orderGridView.DataSource = orderGridSource;
 
             BindingSource positionGridSource = new BindingSource();
             positionGridSource.DataSource = positionGrid;
-            dataGridView2.DataSource = positionGridSource;
+            positionGridView.DataSource = positionGridSource;
         }
 
         private void dataGridView2_CellContentClick(object sender, DataGridViewCellEventArgs e)
@@ -75,11 +94,6 @@ namespace FlexTrade
         }
 
         private void button1_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void button3_Click(object sender, EventArgs e)
         {
 
         }
@@ -116,22 +130,22 @@ namespace FlexTrade
 
         public void addUpdateOrder(OrderGridData ord)
         {
-            dataGridView1.Invoke(new UpdateOrderItemDelegate(this.updateOrderItemToGrid), ord);
+            orderGridView.Invoke(new UpdateOrderItemDelegate(this.updateOrderItemToGrid), ord);
         }
 
         public void removeOrder(OrderGridData ord)
         {
-            dataGridView1.Invoke(new RemoveOrderItemDelegate(this.removeOrderItemFromGrid), ord);
+            orderGridView.Invoke(new RemoveOrderItemDelegate(this.removeOrderItemFromGrid), ord);
         }
 
         public void updatePosition(PositionGridData pos)
         {
-            dataGridView2.Invoke(new UpdatePositionItemDelegate(this.updatePositionItemInGrid), pos);
+            positionGridView.Invoke(new UpdatePositionItemDelegate(this.updatePositionItemInGrid), pos);
         }
 
         public void updatePrice(PositionGridData pos)
         {
-            dataGridView2.Invoke(new UpdatePriceItemDelegate(this.updatePriceItemInGrid), pos);
+            positionGridView.Invoke(new UpdatePriceItemDelegate(this.updatePriceItemInGrid), pos);
         }
 
         //##################################################################3
@@ -143,12 +157,12 @@ namespace FlexTrade
                 orderGrid.Remove(item);
             
             orderGrid.Insert(0, item);
-            dataGridView1.Refresh();
+            orderGridView.Refresh();
         }
         private void removeOrderItemFromGrid(OrderGridData item) 
         {    
             orderGrid.Remove(item);
-            dataGridView1.Refresh();
+            orderGridView.Refresh();
         }
         private void updatePositionItemInGrid(PositionGridData p) 
         {
@@ -161,7 +175,7 @@ namespace FlexTrade
             else
                 positionGrid.Insert(0, p);
 
-            dataGridView2.Refresh();
+            positionGridView.Refresh();
         }
         private void updatePriceItemInGrid(PositionGridData p)
         {
@@ -171,7 +185,7 @@ namespace FlexTrade
                 positionGrid[i].last = p.last;
                 positionGrid[i].value = positionGrid[i].position * p.last;
             }
-            dataGridView2.Refresh();
+            positionGridView.Refresh();
         }
 
         private void label3_Click(object sender, EventArgs e)
@@ -181,41 +195,90 @@ namespace FlexTrade
 
         private void startButton_Click(object sender, EventArgs e)
         {
-            m_Timer = new System.Windows.Forms.Timer();
-            m_Timer.Interval = 1000;
-            m_Timer.Tick += new EventHandler(timerTick);
-            m_Timer.Enabled = true;
+            errorMessageLabel.Visible = false;
 
-            if(StrategyStart != null)
-                StrategyStart("default");
+            if (!started && stategySelection.SelectedItem != null)
+            {
+                started = true;
+
+                m_Timer = new System.Windows.Forms.Timer();
+                m_Timer.Interval = 1000;
+                m_Timer.Tick += new EventHandler(timerTick);
+                m_Timer.Enabled = true;
+
+                if (StrategyStart != null)
+                    StrategyStart(stategySelection.SelectedIndex, currentParms);
+
+                startButton.Enabled = false;
+                exitButton.Enabled = true;
+            }
+            if(stategySelection.SelectedItem == null)
+            {
+                errorMessageLabel.Text = "Please select a strategy";
+                errorMessageLabel.Visible = true;
+            }
         }
 
         private void exitButton_Click(object sender, EventArgs e)
         {
-            if (StrategyStop != null)
-                StrategyStop();
+            if (started)
+            {
+                started = false;
+                startButton.Enabled = true;
+                exitButton.Enabled = false;
+
+                if (StrategyStop != null)
+                    StrategyStop();
+            }
+        }
+
+        private void parameterButton_Click(object sender, EventArgs e)
+        {
+            errorMessageLabel.Visible = false;
+
+            if (stategySelection.SelectedItem == null)
+            {
+                errorMessageLabel.Text = "Please select a strategy";
+                errorMessageLabel.Visible = true;
+            }
+            else
+            {
+                Form parmWin;
+                switch (stategySelection.SelectedIndex)
+                {
+                    case 0:
+                        parmWin = new SimpleOneTickerParmForm(this);
+                        parmWin.Visible = true;
+                        break;
+                }
+            }
+
         }
 
         private void timerTick(Object o, EventArgs e)
         {
-            chart1.Series[0].Points.AddXY(seconds, cummulativePnL);
-            chart1.ChartAreas[0].AxisX.Enabled = System.Windows.Forms.DataVisualization.Charting.AxisEnabled.False;
-           //  chart1.ChartAreas[0].AxisY.Minimum = 0;
-            //chart1.ChartAreas[0].AxisX.Minimum = 0;
-            //double removeBefore = DateTime.Now.AddSeconds(-45.0).ToOADate();
-            //while( chart1.Series[0].Points[0].XValue < removeBefore )
-            while (chart1.Series[0].Points.Count > 50)
+            pnLChart.Series[0].Points.AddXY(seconds, cummulativePnL);
+            pnLChart.ChartAreas[0].AxisX.Enabled = System.Windows.Forms.DataVisualization.Charting.AxisEnabled.False;
+
+            while (pnLChart.Series[0].Points.Count > 50)
             {
-                chart1.Series[0].Points.RemoveAt(0);
+                pnLChart.Series[0].Points.RemoveAt(0);
             }
-            chart1.ChartAreas[0].AxisX.Minimum = chart1.Series[0].Points[0].XValue;
-            chart1.ChartAreas[0].AxisX.Maximum = chart1.Series[0].Points[0].XValue + 50;
-            chart1.Invalidate();
+            pnLChart.ChartAreas[0].AxisX.Minimum = pnLChart.Series[0].Points[0].XValue;
+            pnLChart.ChartAreas[0].AxisX.Maximum = pnLChart.Series[0].Points[0].XValue + 50;
+            pnLChart.ChartAreas[0].RecalculateAxesScale();
+            pnLChart.Invalidate();
 
             seconds++;
+            
         }
 
         private void label5_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void label6_Click(object sender, EventArgs e)
         {
 
         }

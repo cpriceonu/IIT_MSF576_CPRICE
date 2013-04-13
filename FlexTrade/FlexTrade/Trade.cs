@@ -12,6 +12,7 @@ namespace FlexTrade
         public Dictionary<Fill, int> openingOrders { get; set; }
         public Dictionary<Fill, int> closingOrders { get; set; }
         public Double profitloss { get; set; }
+        public Double perSharePnL { get; set; }
 
         public Trade()
         {
