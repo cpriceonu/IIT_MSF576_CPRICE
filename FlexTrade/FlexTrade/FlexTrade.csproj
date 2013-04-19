@@ -53,8 +53,16 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BasicPairTradeStrategy.cs" />
     <Compile Include="BrokerListener.cs" />
     <Compile Include="BuyAndHoldStrategy.cs" />
+    <Compile Include="ComplexRiskFilter.cs" />
+    <Compile Include="PairsTradeParmForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="PairsTradeParmForm.Designer.cs">
+      <DependentUpon>PairsTradeParmForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="PositionListener.cs" />
     <Compile Include="OrderGridData.cs" />
     <Compile Include="Equity.cs" />
@@ -89,8 +97,12 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Trade.cs" />
     <Compile Include="UIController.cs" />
+    <Compile Include="UnacceptableRiskException.cs" />
     <EmbeddedResource Include="MainWindow.resx">
       <DependentUpon>MainWindow.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="PairsTradeParmForm.resx">
+      <DependentUpon>PairsTradeParmForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>

@@ -20,6 +20,7 @@ namespace FlexTrade
         private delegate void RemoveOrderItemDelegate(OrderGridData item);
         private delegate void UpdatePositionItemDelegate(PositionGridData item);
         private delegate void UpdatePriceItemDelegate(PositionGridData item);
+        private delegate void AddMessagesDelegate(List<String> msgs);
 
         public event StrategyStartDelegate StrategyStart;
         public event StrategyStopDelegate StrategyStop;
@@ -47,7 +48,6 @@ namespace FlexTrade
         private double cummulativePnL;
         private int seconds;
         private bool started = false;
-        Random m_random;
         System.Windows.Forms.Timer m_Timer;
 
         public MainWindow()
@@ -82,10 +82,16 @@ namespace FlexTrade
             BindingSource orderGridSource = new BindingSource();
             orderGridSource.DataSource = orderGrid;
             orderGridView.DataSource = orderGridSource;
+            orderGridView.Columns[0].Width = 5;
+            orderGridView.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
 
             BindingSource positionGridSource = new BindingSource();
             positionGridSource.DataSource = positionGrid;
             positionGridView.DataSource = positionGridSource;
+            positionGridView.Columns[2].DefaultCellStyle.Format = "C";
+            positionGridView.Columns[3].DefaultCellStyle.Format = "C";
+            positionGridView.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+
         }
 
         private void dataGridView2_CellContentClick(object sender, DataGridViewCellEventArgs e)
@@ -94,16 +100,6 @@ namespace FlexTrade
         }
 
         private void button1_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void label1_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void label2_Click(object sender, EventArgs e)
         {
 
         }
@@ -148,6 +144,11 @@ namespace FlexTrade
             positionGridView.Invoke(new UpdatePriceItemDelegate(this.updatePriceItemInGrid), pos);
         }
 
+        public void addMessages(List<String> messages)
+        {
+            positionGridView.Invoke(new AddMessagesDelegate(this.addMessagesToTable), messages);
+        }
+
         //##################################################################3
         //Create a separate methods because the UI thread doesnt like when you access data on its stack
         //Called by a delegate instead by calling the Invoke method above
@@ -187,10 +188,18 @@ namespace FlexTrade
             }
             positionGridView.Refresh();
         }
-
-        private void label3_Click(object sender, EventArgs e)
+        private void addMessagesToTable(List<String> msgs)
         {
+            foreach(DataGridViewRow row in messageGridView.Rows)
+                row.Cells[0].Style.BackColor = Color.White;
 
+            foreach (String m in msgs)
+            {
+                messageGridView.Rows.Add(m);
+                int numRows = messageGridView.Rows.Count;
+                messageGridView.CurrentCell = messageGridView[0, numRows - 2];
+                messageGridView.Rows[numRows - 2].Cells[0].Style.BackColor = Color.Red;
+            }
         }
 
         private void startButton_Click(object sender, EventArgs e)
@@ -250,9 +259,12 @@ namespace FlexTrade
                         parmWin = new SimpleOneTickerParmForm(this);
                         parmWin.Visible = true;
                         break;
+                    case 1:
+                        parmWin = new PairsTradeParmForm(this);
+                        parmWin.Visible = true;
+                        break;
                 }
             }
-
         }
 
         private void timerTick(Object o, EventArgs e)
@@ -260,28 +272,16 @@ namespace FlexTrade
             pnLChart.Series[0].Points.AddXY(seconds, cummulativePnL);
             pnLChart.ChartAreas[0].AxisX.Enabled = System.Windows.Forms.DataVisualization.Charting.AxisEnabled.False;
 
-            while (pnLChart.Series[0].Points.Count > 50)
+            while (pnLChart.Series[0].Points.Count > 60)
             {
                 pnLChart.Series[0].Points.RemoveAt(0);
             }
             pnLChart.ChartAreas[0].AxisX.Minimum = pnLChart.Series[0].Points[0].XValue;
-            pnLChart.ChartAreas[0].AxisX.Maximum = pnLChart.Series[0].Points[0].XValue + 50;
+            pnLChart.ChartAreas[0].AxisX.Maximum = pnLChart.Series[0].Points[0].XValue + 60;
             pnLChart.ChartAreas[0].RecalculateAxesScale();
             pnLChart.Invalidate();
 
             seconds++;
-            
         }
-
-        private void label5_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void label6_Click(object sender, EventArgs e)
-        {
-
-        }
-
     }
 }

@@ -6,23 +6,50 @@ using System.Threading.Tasks;
 
 namespace FlexTrade
 {
-    class PairStrategy : Strategy, BrokerListener
+    class BasicPairTradeStrategy : Strategy, BrokerListener
     {
         private List<Product> products;
         private List<BrokerManager> brokers;
         private Dictionary<int, Order> myOpenOrders;
-        private int quantityOfEachProduct;
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
-        public PairStrategy(List<Product> p, List<BrokerManager> b, int quantity)
+        //Strategy specific variables
+        private StrategyState state;    //keeps track of the state of the running strategy, very important
+        private Product productA, productB; // the two products that will be traded
+        private int targetQtyA, targetQtyB, bidQtyA, bidQtyB, askQtyA, askQtyB;
+        private double bidA, bidB, askA, askB, buySpread, sellSpread;   //A-B
+
+        //These are the various states that the strategy can be in at any given time
+        private enum StrategyState
         {
+            CREATED,
+            INITIALIZING,
+            READY,
+            SIGNAL_DETECTED,
+            TRADE_ON,
+            EXITING
+        };
+
+        public BasicPairTradeStrategy(Product productA, Product productB, List<BrokerManager> b, Int32 targetQtyA, 
+            Int32 targetQtyB, Double buySpread, Double sellSpread)
+        {
+            if(productA == null || productB == null || b == null || targetQtyA == null || targetQtyB == null
+                || buySpread == null || sellSpread == null)
+            {
+                String message = "Invalid parameters";
+                log.Error(message);
+                throw new Exception(message);
+            }
+
             myOpenOrders = new Dictionary<int, Order>();
-            products = p;
             brokers = b;
-            if (quantity > 0)
-                quantityOfEachProduct = quantity;
-            else
-                quantityOfEachProduct = 1;
+            this.state = StrategyState.CREATED;
+            this.productA = productA;
+            this.productB = productB;
+            this.targetQtyA = targetQtyA;
+            this.targetQtyB = targetQtyB;
+            this.buySpread = buySpread;
+            this.sellSpread = sellSpread;
 
             //register to receive events from broker
             foreach(BrokerManager brk in brokers)
@@ -41,38 +68,21 @@ namespace FlexTrade
         {
             if ((brokers != null) && (brokers.Count() > 0))
             {
+                //We assume for now that we are working with just one broker. May need to be changed in the future
                 BrokerManager broker = brokers.First();
-                foreach (Product p in products)
-                {
-                    MarketOrder currentOrder = new MarketOrder(p, quantityOfEachProduct, Order.Side.BUY);             
 
-                    try{
-                        log.Info("Sending order for " + currentOrder.product.symbol);
-                        int orderId = broker.submitOrder(currentOrder);
-                        myOpenOrders.Add(orderId, currentOrder);
-                    }catch(Exception e){
-                        log.Error("Unable to submit order", e);
-                    }
-                }
+                
             }
         }
 
         public void exit()
         {
-            BrokerManager broker = brokers.First();
-            foreach (Product p in products)
+            if ((brokers != null) && (brokers.Count() > 0))
             {
-                MarketOrder currentOrder = new MarketOrder(p, quantityOfEachProduct, Order.Side.SELL);
+                //We assume for now that we are working with just one broker. May need to be changed in the future
+                BrokerManager broker = brokers.First();
 
-                try
-                {
-                    int orderId = broker.submitOrder(currentOrder);
-                    myOpenOrders.Add(orderId, currentOrder);
-                }
-                catch (Exception e)
-                {
-                    log.Error("Unable to submit order", e);
-                }
+
             }
         }
 
@@ -98,20 +108,32 @@ namespace FlexTrade
             }
         }
         public void bidUpdate(Product p) 
-        { 
-            //do nothing
+        {
+            if (productA.Equals(p))
+                this.bidA = p.bid;
+            else if (productB.Equals(p))
+                this.bidB = p.bid;
         }
         public void askUpdate(Product p) 
         {
-            //do nothing
+            if (productA.Equals(p))
+                this.askA = p.ask;
+            else if (productB.Equals(p))
+                this.askB = p.ask;
         }
         public void bidQtyUpdate(Product p) 
         {
-            //do nothing
+            if (productA.Equals(p))
+                this.bidQtyA = p.bidQty;
+            else if (productB.Equals(p))
+                this.bidQtyB = p.bidQty;
         }
         public void askQtyUpdate(Product p) 
         {
-            //do nothing
+            if (productA.Equals(p))
+                this.askQtyA = p.askQty;
+            else if (productB.Equals(p))
+                this.askQtyB = p.askQty;
         }
         public void lastUpdate(Product p) 
         {
@@ -124,7 +146,7 @@ namespace FlexTrade
 
         public void orderConfirmed(Order ord)
         {
-            throw new NotImplementedException();
+            //do nothing
         }
     }
 }

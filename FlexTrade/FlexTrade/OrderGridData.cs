@@ -11,6 +11,8 @@ namespace FlexTrade
     {
         [DisplayName("Order #")]
         public int orderNum { get; set; }
+        [DisplayName("Type")]
+        public String type { get; set; }
         [DisplayName("Side")]
         public String side { get; set; }
         [DisplayName("Symbol")]

@@ -10,6 +10,7 @@ namespace FlexTrade
     {
         event OrderConfirmEventHandler OrderConfirmed;
         event FillEventHandler FillUpdate;
+        event RiskFilterFailureEventHandler RiskFilterFailure;
         event BidUpdateEventHandler BidUpdate;
         event AskUpdateEventHandler AskUpdate;
         event BidQtyUpdateEventHandler BidQtyUpdate;

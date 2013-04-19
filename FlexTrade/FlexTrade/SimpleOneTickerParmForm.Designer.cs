@@ -33,6 +33,7 @@
             this.qtyBox = new System.Windows.Forms.TextBox();
             this.label2 = new System.Windows.Forms.Label();
             this.submitButton = new System.Windows.Forms.Button();
+            this.errorMessage = new System.Windows.Forms.Label();
             this.SuspendLayout();
             // 
             // tickerBox
@@ -50,7 +51,6 @@
             this.label1.Size = new System.Drawing.Size(47, 17);
             this.label1.TabIndex = 1;
             this.label1.Text = "Ticker";
-            this.label1.Click += new System.EventHandler(this.label1_Click);
             // 
             // qtyBox
             // 
@@ -67,7 +67,6 @@
             this.label2.Size = new System.Drawing.Size(61, 17);
             this.label2.TabIndex = 3;
             this.label2.Text = "Quantity";
-            this.label2.Click += new System.EventHandler(this.label2_Click);
             // 
             // submitButton
             // 
@@ -79,11 +78,24 @@
             this.submitButton.UseVisualStyleBackColor = true;
             this.submitButton.Click += new System.EventHandler(this.submitButton_Click);
             // 
+            // errorMessage
+            // 
+            this.errorMessage.AutoSize = true;
+            this.errorMessage.Font = new System.Drawing.Font("Microsoft Sans Serif", 7.8F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.errorMessage.ForeColor = System.Drawing.Color.Red;
+            this.errorMessage.Location = new System.Drawing.Point(22, 9);
+            this.errorMessage.Name = "errorMessage";
+            this.errorMessage.Size = new System.Drawing.Size(45, 17);
+            this.errorMessage.TabIndex = 5;
+            this.errorMessage.Text = "Error";
+            this.errorMessage.Visible = false;
+            // 
             // SimpleOneTickerParmForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(330, 167);
+            this.Controls.Add(this.errorMessage);
             this.Controls.Add(this.submitButton);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.qtyBox);
@@ -103,5 +115,6 @@
         private System.Windows.Forms.TextBox qtyBox;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Button submitButton;
+        private System.Windows.Forms.Label errorMessage;
     }
 }

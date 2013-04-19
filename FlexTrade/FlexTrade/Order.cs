@@ -28,6 +28,7 @@ namespace FlexTrade
             timeCreated = DateTime.UtcNow;
             fillPrices = new List<Double>();
             fillQuantities = new List<Int32>();
+            status = OrderStatus.INITIAL;
         }
 
         public enum Side

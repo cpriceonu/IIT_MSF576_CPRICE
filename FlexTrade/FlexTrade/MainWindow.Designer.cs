@@ -46,10 +46,14 @@ namespace FlexTrade
             this.label4 = new System.Windows.Forms.Label();
             this.label5 = new System.Windows.Forms.Label();
             this.errorMessageLabel = new System.Windows.Forms.Label();
+            this.messageGridView = new System.Windows.Forms.DataGridView();
+            this.label6 = new System.Windows.Forms.Label();
+            this.Message = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.mainWindowBindingSource = new System.Windows.Forms.BindingSource(this.components);
             ((System.ComponentModel.ISupportInitialize)(this.orderGridView)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.positionGridView)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.pnLChart)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.messageGridView)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.mainWindowBindingSource)).BeginInit();
             this.SuspendLayout();
             // 
@@ -109,7 +113,6 @@ namespace FlexTrade
             this.label1.Size = new System.Drawing.Size(118, 17);
             this.label1.TabIndex = 5;
             this.label1.Text = "Select a strategy:";
-            this.label1.Click += new System.EventHandler(this.label1_Click);
             // 
             // parameterButton
             // 
@@ -128,7 +131,6 @@ namespace FlexTrade
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(0, 17);
             this.label2.TabIndex = 7;
-            this.label2.Click += new System.EventHandler(this.label2_Click);
             // 
             // pnLChart
             // 
@@ -155,7 +157,6 @@ namespace FlexTrade
             this.label3.Size = new System.Drawing.Size(72, 25);
             this.label3.TabIndex = 9;
             this.label3.Text = "Orders";
-            this.label3.Click += new System.EventHandler(this.label3_Click);
             // 
             // label4
             // 
@@ -176,7 +177,6 @@ namespace FlexTrade
             this.label5.Size = new System.Drawing.Size(359, 25);
             this.label5.TabIndex = 11;
             this.label5.Text = "$ P/L per Share (one second resolution)";
-            this.label5.Click += new System.EventHandler(this.label5_Click);
             // 
             // errorMessageLabel
             // 
@@ -190,7 +190,33 @@ namespace FlexTrade
             this.errorMessageLabel.TabIndex = 12;
             this.errorMessageLabel.Text = "Error";
             this.errorMessageLabel.Visible = false;
-            this.errorMessageLabel.Click += new System.EventHandler(this.label6_Click);
+            // 
+            // messageGridView
+            // 
+            this.messageGridView.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.messageGridView.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
+            this.Message});
+            this.messageGridView.Location = new System.Drawing.Point(32, 660);
+            this.messageGridView.Name = "messageGridView";
+            this.messageGridView.RowTemplate.Height = 24;
+            this.messageGridView.Size = new System.Drawing.Size(1191, 134);
+            this.messageGridView.TabIndex = 13;
+            // 
+            // label6
+            // 
+            this.label6.AutoSize = true;
+            this.label6.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label6.Location = new System.Drawing.Point(29, 623);
+            this.label6.Name = "label6";
+            this.label6.Size = new System.Drawing.Size(103, 25);
+            this.label6.TabIndex = 14;
+            this.label6.Text = "Messages";
+            // 
+            // Message
+            // 
+            this.Message.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.Fill;
+            this.Message.HeaderText = "Message";
+            this.Message.Name = "Message";
             // 
             // mainWindowBindingSource
             // 
@@ -200,7 +226,9 @@ namespace FlexTrade
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1280, 633);
+            this.ClientSize = new System.Drawing.Size(1280, 806);
+            this.Controls.Add(this.label6);
+            this.Controls.Add(this.messageGridView);
             this.Controls.Add(this.errorMessageLabel);
             this.Controls.Add(this.label5);
             this.Controls.Add(this.label4);
@@ -220,6 +248,7 @@ namespace FlexTrade
             ((System.ComponentModel.ISupportInitialize)(this.orderGridView)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.positionGridView)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.pnLChart)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.messageGridView)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.mainWindowBindingSource)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
@@ -242,6 +271,9 @@ namespace FlexTrade
         private System.Windows.Forms.Label label5;
         private BindingSource mainWindowBindingSource;
         private Label errorMessageLabel;
+        private DataGridView messageGridView;
+        private Label label6;
+        private DataGridViewTextBoxColumn Message;
 
     }
 }

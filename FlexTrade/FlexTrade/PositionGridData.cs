@@ -16,7 +16,7 @@ namespace FlexTrade
 
         public bool Equals(PositionGridData other)
         {
-            if (symbol.Equals(other.symbol))
+            if (symbol != null && symbol.Equals(other.symbol))
                 return true;
             else
                 return false;

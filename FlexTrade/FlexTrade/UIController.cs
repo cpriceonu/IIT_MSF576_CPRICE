@@ -8,7 +8,7 @@ using System.Windows.Forms;
 
 namespace FlexTrade
 {
-    public enum PARMS {Ticker, Qty};
+    public enum PARMS {Ticker1, Ticker2, BuyQty, SellQty, BuySpread, SellSpread};
 
     public class UIController : BrokerListener, PositionListener
     {
@@ -33,11 +33,13 @@ namespace FlexTrade
             {
                 brk.FillUpdate += new FillEventHandler(fillReceived);
                 brk.OrderConfirmed += new OrderConfirmEventHandler(orderConfirmed);
+                brk.RiskFilterFailure += new RiskFilterFailureEventHandler(riskFilterFailed);
                 brk.LastUpdate += new LastUpdateEventHandler(lastUpdate);
             }
 
             Dictionary<int, String> strategyMap = new Dictionary<int, String>();
             strategyMap.Add(0, "Buy & Hold");
+            strategyMap.Add(1, "Pair Trade");
             win.availableStrategies = strategyMap;
         }
 
@@ -46,7 +48,7 @@ namespace FlexTrade
         {
             if (runningStrategy == null)
             {
-                Equity eq1 = new Equity(parms[PARMS.Ticker], parms[PARMS.Ticker]);
+                Equity eq1 = new Equity(parms[PARMS.Ticker1], parms[PARMS.Ticker1]);
 
                 List<Product> products = new List<Product>();
                 products.Add(eq1);
@@ -54,7 +56,10 @@ namespace FlexTrade
                 switch (id)
                 {
                     case 0:
-                        runningStrategy = new BuyAndHoldStrategy(products, brokers, Int32.Parse(parms[PARMS.Qty]));
+                        runningStrategy = new PairStrategy(products, brokers, Int32.Parse(parms[PARMS.BuyQty]));
+                        break;
+                    case 1:
+                        runningStrategy = new BasicPairTradeStrategy();
                         break;
                 }
 
@@ -72,6 +77,11 @@ namespace FlexTrade
         public void fillReceived(Fill fill)
         {
             win.addUpdateOrder(createOrderGridItem(fill.originalOrder));
+        }
+
+        public void riskFilterFailed(List<String> msgs)
+        {
+            win.addMessages(msgs);
         }
 
         public void bidUpdate(Product p)
@@ -120,6 +130,13 @@ namespace FlexTrade
             data.orderNum = ord.internalId;
             data.qty = ord.orderQuantity;
             data.filled = ord.fillQuantities.Sum();
+
+            if (ord is MarketOrder)
+                data.type = "MKT";
+            else if (ord is LimitOrder)
+                data.type = "LMT";
+            else
+                data.type = "NA";
 
             return data;
         }

@@ -8,12 +8,12 @@ namespace FlexTrade
 {
     //A simple risk filter that ensures that no more then a predefined maximum number of positions
     //is held in an one product
-    class SimplePositionLimtRiskFilter : RiskFilter
+    class ComplexRiskFilter : RiskFilter, BrokerListener
     {
         private PositionManager positionManager { get; set; }
         private int maxPositionSize { get; set; }
 
-        public SimplePositionLimtRiskFilter(PositionManager p) 
+        public ComplexRiskFilter(PositionManager p) 
         {         
             positionManager = p;
             maxPositionSize = 1000;

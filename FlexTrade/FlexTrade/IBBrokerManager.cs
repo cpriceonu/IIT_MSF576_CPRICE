@@ -13,6 +13,7 @@ namespace FlexTrade
 {
     public delegate void FillEventHandler(Fill x);
     public delegate void OrderConfirmEventHandler(Order x);
+    public delegate void RiskFilterFailureEventHandler(List<String> msgs);
     public delegate void BrokerReadyEventHandler(Type brokerName);
     public delegate void BidUpdateEventHandler(Product p);
     public delegate void AskUpdateEventHandler(Product p);
@@ -54,6 +55,7 @@ namespace FlexTrade
 
         public event FillEventHandler FillUpdate;
         public event OrderConfirmEventHandler OrderConfirmed;
+        public event RiskFilterFailureEventHandler RiskFilterFailure;
         public event BidUpdateEventHandler BidUpdate;
         public event AskUpdateEventHandler AskUpdate;
         public event BidQtyUpdateEventHandler BidQtyUpdate;
@@ -136,10 +138,21 @@ namespace FlexTrade
         {
             int currentID = orderIdCounter;
             //Must pass all orders through the risk filter to ensure that it is compliant
-            if (!riskFilter.isAcceptable(o))
+            try
+            {
+                log.Debug("Running order #" + o.internalId + " through risk filter.");
+                riskFilter.isAcceptable(o);
+            }
+            catch(UnacceptableRiskException e)
             {
                 log.Error("Order " + o.internalId + " rejected by risk filter");
-                throw new Exception("Order rejected by risk filter");
+                
+                //Alert any interested in hearing about orders caught by the risk filter 
+                if(RiskFilterFailure != null)
+                    RiskFilterFailure(e.riskFilterMessages);
+                
+                //Rethrow the messages so that the sender of the order knows it failed
+                throw;
             }
 
             //If the order ID is still set to -1, then we haven't received the intial ID value from IB
@@ -189,6 +202,7 @@ namespace FlexTrade
                 log.Info("Sending order #" + internalOrder.OrderId + " for " + internalOrder.TotalQuantity + " of " + contract.Symbol);
                 placeOrder(internalOrder, contract);
                 requestMarketDataForProduct(o.product);
+                o.status = Order.OrderStatus.SENT;
 
                 //increment the order and ticker IDs for the next order and contract
                 orderIdCounter++;
@@ -228,7 +242,23 @@ namespace FlexTrade
         public void cancelOrder(FlexTrade.Order o)
         {
             log.Info("Cancelling order #" + o.internalId);
+
             ibClient.CancelOrder(Convert.ToInt32(o.exchangeId));
+
+            if(ordersOrgFormat.ContainsKey(o.internalId))
+            {
+                Order ord = ordersOrgFormat[o.internalId];
+                ord.status = Order.OrderStatus.CANCELLED;
+                
+                if(openOrders.ContainsKey(ord.internalId))
+                {   
+                    orderInputQueue.Remove(openOrders[ord.internalId]);
+                    openOrders.Remove(ord.internalId);
+                }
+                ordersOrgFormat.Remove(ord.internalId);
+                openOrderContracts.Remove(ord.internalId);
+            }
+           
         }
 
         //cancelReplace
@@ -319,16 +349,20 @@ namespace FlexTrade
                 Krs.Ats.IBNet.Order krsOrder = openOrders[e.OrderId];
                 FlexTrade.Order ftOrder = ordersOrgFormat[e.OrderId];
 
+                ftOrder.status = Order.OrderStatus.FILL;
                 ftOrder.fillPrices.Add(e.Execution.Price);
                 ftOrder.fillQuantities.Add(e.Execution.Shares);
 
                 //if completely filled, remove the orders from the list of open orders
                 if (ftOrder.fillQuantities.Sum() == ftOrder.orderQuantity)
                 {
+                    ordersOrgFormat[e.OrderId].status = Order.OrderStatus.FILL;
                     openOrders.Remove(e.OrderId);
                     ordersOrgFormat.Remove(e.OrderId);
                     openOrderContracts.Remove(e.OrderId);
                 }
+                else
+                    ordersOrgFormat[e.OrderId].status = Order.OrderStatus.PARTIAL_FILL;
 
                 //Set the execution values in the order
                 fill.originalOrder = ftOrder;
@@ -345,8 +379,11 @@ namespace FlexTrade
         {
             Order ord = null;
 
-            if(ordersOrgFormat.ContainsKey(e.OrderId))
+            if (ordersOrgFormat.ContainsKey(e.OrderId))
+            {
                 ord = ordersOrgFormat[e.OrderId];
+                ord.status = Order.OrderStatus.CONFIRM;
+            }
 
             if (OrderConfirmed != null && ord != null)
                 OrderConfirmed(ord);
