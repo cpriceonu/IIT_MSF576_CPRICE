@@ -11,5 +11,10 @@ namespace FlexTrade
         public Double limitPrice { get; set; }
 
         public LimitOrder(Product p, int quantity, Side s) : base(p, quantity, s) { }
+
+        public LimitOrder(Product p, int quantity, Side s, double lmtPrice) : base(p, quantity, s) 
+        {
+            this.limitPrice = lmtPrice;
+        }
     }
 }

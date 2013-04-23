@@ -10,7 +10,8 @@ namespace FlexTrade
     {
         private List<Product> products;
         private List<BrokerManager> brokers;
-        private Dictionary<int, Order> myOpenOrders;
+        private Dictionary<StrategyOrderType, Order> myOrders;
+        private Dictionary<int, int> myFills;  //order number ==> filled qty
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
 
         //Strategy specific variables
@@ -30,6 +31,15 @@ namespace FlexTrade
             EXITING
         };
 
+         //These are the various states that the strategy can be in at any given time
+        private enum StrategyOrderType
+        {
+            BUY_A,
+            BUY_B,
+            SELL_A,
+            SELL_B
+        };
+
         public BasicPairTradeStrategy(Product productA, Product productB, List<BrokerManager> b, Int32 targetQtyA, 
             Int32 targetQtyB, Double buySpread, Double sellSpread)
         {
@@ -41,7 +51,7 @@ namespace FlexTrade
                 throw new Exception(message);
             }
 
-            myOpenOrders = new Dictionary<int, Order>();
+            myOrders = new Dictionary<StrategyOrderType, Order>();
             brokers = b;
             this.state = StrategyState.CREATED;
             this.productA = productA;
@@ -86,6 +96,148 @@ namespace FlexTrade
             }
         }
 
+        //Sends in the initial orders so that we can begin waiting for the signal
+        private void setup()
+        {
+            if(myOrders != null && myOrders.Count() > 0)
+                unwindTrades();
+
+            this.state = StrategyState.INITIALIZING;
+
+            //enter initial trades, two for each product
+            BrokerManager brk = getFirstBroker();
+            
+            //We don't want anyone else submitting orders at this time, so that we limit the time 
+            //in between the submission of these four orders.
+            lock(brk)
+            {
+                //enter A side based on B price
+                LimitOrder sellAOrd = new LimitOrder(productA, bidQtyA, Order.Side.SELL, askB + sellSpread);
+                LimitOrder buyAOrd = new LimitOrder(productA, bidQtyA, Order.Side.BUY, bidB + buySpread);
+
+                //submit A side orders
+                brk.submitOrder(sellAOrd);
+                brk.submitOrder(buyAOrd);
+
+                //Keep track of the A side orders
+                myOrders.Add(StrategyOrderType.SELL_A, sellAOrd);
+                myOrders.Add(StrategyOrderType.BUY_A, buyAOrd);
+                myFills.Add(sellAOrd.internalId, 0);
+                myFills.Add(buyAOrd.internalId, 0);
+
+                //enter B side based on A price
+                LimitOrder sellBOrd = new LimitOrder(productB, bidQtyB, Order.Side.SELL, askA + sellSpread);
+                LimitOrder buyBOrd = new LimitOrder(productB, bidQtyB, Order.Side.BUY, bidA + buySpread);
+
+                //submit B side orders
+                brk.submitOrder(sellAOrd);
+                brk.submitOrder(buyAOrd);
+
+                //Keep track of the B side orders
+                myOrders.Add(StrategyOrderType.SELL_B, sellBOrd);
+                myOrders.Add(StrategyOrderType.BUY_B, buyBOrd);
+                myFills.Add(sellBOrd.internalId, 0);
+                myFills.Add(buyBOrd.internalId, 0);
+
+                this.state = StrategyState.READY;
+            }
+        }
+
+        private void unwindTrades()
+        {
+            //close the positions
+           
+            //reinitialze data structures to keep track of orders and filles
+            myOrders = new Dictionary<StrategyOrderType, Order>();
+            myFills = new Dictionary<int, int>();
+        }
+
+        //When we detect the signal, we perform these actions
+        private void tradeOnSignal(Fill fill)
+        {
+            LimitOrder hedgeOrder;
+            List<Order> ordersToCancel = new List<Order>();
+
+            //determine which of the orders where filled, and add the orders
+            //that werent filled to a list. Also, based on the type of fill,
+            //determine which order needs to be submitted
+            if (fill.originalOrder.product.Equals(productA))
+            {
+                //This was a fill for product A, so cancel the orders for B
+                ordersToCancel.Add(myOrders[StrategyOrderType.BUY_B]);
+                ordersToCancel.Add(myOrders[StrategyOrderType.SELL_B]);
+
+                if (fill.originalOrder.side.Equals(Order.Side.BUY))
+                {
+                    //This was a buy of A, so cancel the sell of A and submit a hedge to buy B
+                    hedgeOrder = new LimitOrder(productB, fill.qty, Order.Side.SELL, fill.price - sellSpread);
+                    ordersToCancel.Add(myOrders[StrategyOrderType.SELL_A]);
+                }
+                else
+                {
+                    //This was a sell of A, so cancel the buy of A and submit a hedge to sell B
+                    hedgeOrder = new LimitOrder(productB, fill.qty, Order.Side. BUY, fill.price - buySpread);
+                    ordersToCancel.Add(myOrders[StrategyOrderType.BUY_A]);
+                }
+            }
+            else
+            {
+                //This was a fill for product B, so cancel the orders for A
+                ordersToCancel.Add(myOrders[StrategyOrderType.BUY_A]);
+                ordersToCancel.Add(myOrders[StrategyOrderType.SELL_A]);
+
+                if (fill.originalOrder.side.Equals(Order.Side.BUY))
+                {
+                    //This was a buy of B, so cancel the sell of B and submit a hedge to buy A
+                    hedgeOrder = new LimitOrder(productA, fill.qty, Order.Side.SELL, fill.price - sellSpread);
+                    ordersToCancel.Add(myOrders[StrategyOrderType.SELL_B]);
+                }
+                else
+                {
+                    //This was a sell of B, so cancel the buy of B and submit a hedge to sell A
+                    hedgeOrder = new LimitOrder(productA, fill.qty, Order.Side.BUY, fill.price - buySpread);
+                    ordersToCancel.Add(myOrders[StrategyOrderType.BUY_B]);
+                }
+            }
+
+            //cancel the orders that aren't a part of this trade
+            cancelOrders(ordersToCancel);
+
+            //TODO: What happens if this was a partial fill?
+
+            //submit hedge orders
+            getFirstBroker().submitOrder(hedgeOrder);
+        }
+
+        private void checkForExitCondition()
+        {
+            if(true) //TODO: replace with real condition
+            {
+                state = StrategyState.EXITING;
+                unwindTrades();
+
+                //Reinitialize system to begining state
+                setup();
+            }
+        }
+
+        //Since we don't care about multiple brokers at the moment, we just get the first in the list
+        private BrokerManager getFirstBroker()
+        {
+            if ((brokers != null) && (brokers.Count() > 0))
+                return brokers.First();
+            else
+                return null;
+        }
+
+        private void cancelOrders(List<Order> ords)
+        {
+            BrokerManager brk = getFirstBroker();
+
+            foreach (Order ord in ords)
+                brk.cancelOrder(ord);
+        }
+
         //##################################
         //The following events will be called be called
         //when the broker manager triggers an event
@@ -93,19 +245,17 @@ namespace FlexTrade
 
         public void fillReceived(Fill fill) 
         {
-            int key = -1;
+            Order key = null;
             
             if(fill != null && fill.originalOrder != null)
-                key = fill.originalOrder.internalId;
+                key = fill.originalOrder;
             else
                 log.Error("Did not receive a valid fill message");
 
-            //make sure the fill is for one of my orders
-            if(myOpenOrders.ContainsKey(key))
-            {
-                log.Info("Received a fill for order " + key);
-                myOpenOrders.Remove(key);
-            }
+            //if (myFills.Contains(key.internalId))
+            //{
+            //    myFills.
+            //}
         }
         public void bidUpdate(Product p) 
         {
